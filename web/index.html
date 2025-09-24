@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskNoX Security Agent Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .status-card {
+            transition: all 0.3s ease;
+        }
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .scan-progress {
+            display: none;
+        }
+        .threat-item {
+            border-left: 4px solid #dc3545;
+            background-color: #f8d7da;
+        }
+        .blocked-url-item {
+            border-left: 4px solid #fd7e14;
+            background-color: #fff3cd;
+        }
+        .patch-item {
+            border-left: 4px solid #198754;
+        }
+        .admin-only {
+            display: none;
+        }
+        .log-output {
+            background-color: #f8f9fa;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-shield-check"></i>
+                RiskNoX Security Agent
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div id="authSection">
+                    <button class="btn btn-outline-light" onclick="showAdminLogin()">
+                        <i class="bi bi-person-gear"></i> Admin Login
+                    </button>
+                </div>
+                <div id="adminSection" class="admin-only">
+                    <span class="navbar-text me-3">Welcome, Admin</span>
+                    <button class="btn btn-outline-light" onclick="logout()">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- System Status Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card status-card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">CPU Usage</h6>
+                                <h4 id="cpuUsage">---%</h4>
+                            </div>
+                            <div>
+                                <i class="bi bi-cpu" style="font-size: 2rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Memory Usage</h6>
+                                <h4 id="memoryUsage">---%</h4>
+                            </div>
+                            <div>
+                                <i class="bi bi-memory" style="font-size: 2rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Disk Usage</h6>
+                                <h4 id="diskUsage">---%</h4>
+                            </div>
+                            <div>
+                                <i class="bi bi-hdd" style="font-size: 2rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Active Scans</h6>
+                                <h4 id="activeScans">0</h4>
+                            </div>
+                            <div>
+                                <i class="bi bi-activity" style="font-size: 2rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="antivirus-tab" data-bs-toggle="tab" data-bs-target="#antivirus" type="button">
+                    <i class="bi bi-shield-exclamation"></i> Antivirus Scanner
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="web-blocking-tab" data-bs-toggle="tab" data-bs-target="#web-blocking" type="button">
+                    <i class="bi bi-globe"></i> Web Blocking
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="patch-management-tab" data-bs-toggle="tab" data-bs-target="#patch-management" type="button">
+                    <i class="bi bi-arrow-clockwise"></i> Patch Management
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content mt-3" id="mainTabContent">
+            <!-- Antivirus Tab -->
+            <div class="tab-pane fade show active" id="antivirus" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-shield-exclamation"></i> Antivirus Scanner</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <!-- Scan Type Selection -->
+                                <div class="mb-3">
+                                    <label class="form-label">Scan Type</label>
+                                    <div class="d-flex gap-3 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="scanType" id="directoryScan" value="directory" checked>
+                                            <label class="form-check-label" for="directoryScan">
+                                                <i class="bi bi-folder"></i> Directory Scan
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="scanType" id="systemScan" value="system">
+                                            <label class="form-check-label" for="systemScan">
+                                                <i class="bi bi-pc-display"></i> Full System Scan
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Directory Path Input (conditional) -->
+                                <div class="mb-3" id="directoryPathSection">
+                                    <label for="scanPath" class="form-label">Select Directory to Scan</label>
+                                    <input type="text" class="form-control" id="scanPath" 
+                                           placeholder="e.g., C:\Users\Username\Downloads" 
+                                           value="C:\Users\%USERNAME%\Downloads">
+                                </div>
+
+                                <!-- System Scan Info (conditional) -->
+                                <div class="mb-3" id="systemScanInfo" style="display: none;">
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i>
+                                        <strong>Full System Scan</strong> will scan all drives and system directories. This may take longer but provides comprehensive protection.
+                                        <br><small>Scan will include: System drives (C:\), Program Files, Windows directory, User folders, and all accessible drives.</small>
+                                    </div>
+                                </div>
+
+                                <!-- Scan Buttons -->
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary" id="startScanBtn" onclick="startScan()">
+                                        <i class="bi bi-play-fill"></i> <span id="scanButtonText">Start Directory Scan</span>
+                                    </button>
+                                    <button class="btn btn-success" id="quickScanBtn" onclick="startQuickScan()" style="display: none;">
+                                        <i class="bi bi-lightning-fill"></i> Quick System Scan
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-shield-check text-success" style="font-size: 2rem;"></i>
+                                        <h6 class="mt-2">Scan Options</h6>
+                                        <div id="scanTypeInfo">
+                                            <p class="small">
+                                                <strong>Directory Scan:</strong> Scans a specific folder for threats.
+                                                <br><br>
+                                                <strong>Full System Scan:</strong> Comprehensive scan of entire system including all drives and system files.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scan Progress -->
+                        <div id="scanProgress" class="scan-progress mt-3">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 100%"></div>
+                            </div>
+                            <p class="mt-2"><strong>Status:</strong> <span id="scanStatus">Initializing...</span></p>
+                        </div>
+
+                        <!-- Scan Progress -->
+                        <div id="scanProgressDetails" class="mt-3" style="display: none;">
+                            <div class="progress mb-2">
+                                <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <small><strong>Files Scanned:</strong> <span id="filesScanned">0</span>/<span id="totalFiles">0</span></small>
+                                </div>
+                                <div class="col-md-3">
+                                    <small><strong>Progress:</strong> <span id="progressPercent">0</span>%</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <small><strong>Threats:</strong> <span id="threatsFound">0</span></small>
+                                </div>
+                                <div class="col-md-3">
+                                    <small><strong>Status:</strong> <span id="detailedStatus">Initializing...</span></small>
+                                </div>
+                            </div>
+                            
+                            <!-- Real-time Scan Log -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0"><i class="bi bi-terminal"></i> Live Scan Log</h6>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="clearScanLog()">
+                                        <i class="bi bi-eraser"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div id="scanLogOutput" class="log-output" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; background-color: #1e1e1e; color: #00ff00; padding: 10px;">
+                                        <div class="text-success">Waiting for scan to start...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scan Results -->
+                        <div id="scanResults" class="mt-3" style="display: none;">
+                            <h6>Scan Results</h6>
+                            <div id="scanSummary" class="mb-3"></div>
+                            <div id="threatsList"></div>
+                        </div>
+                        
+                        <!-- Scheduled Scans Section -->
+                        <div class="mt-4">
+                            <h6><i class="bi bi-clock"></i> Scheduled Scans</h6>
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Automatic Scans</span>
+                                    <button class="btn btn-sm btn-primary" onclick="showScheduleModal()">
+                                        <i class="bi bi-plus-circle"></i> Schedule New Scan
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div id="scheduledScansList">
+                                        <p class="text-muted">Loading scheduled scans...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web Blocking Tab -->
+            <div class="tab-pane fade" id="web-blocking" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-globe"></i> Web Blocking</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="blockUrl" 
+                                           placeholder="Enter URL to block (e.g., example.com)">
+                                    <button class="btn btn-danger" onclick="blockUrl()">
+                                        <i class="bi bi-slash-circle"></i> Block URL
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                                        <p class="small mt-2">Blocked URLs will be inaccessible from this computer.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Blocked URLs List -->
+                        <div class="mt-4">
+                            <h6>Currently Blocked URLs</h6>
+                            <div id="blockedUrlsList">
+                                <p class="text-muted">Loading blocked URLs...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patch Management Tab -->
+            <div class="tab-pane fade" id="patch-management" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="bi bi-arrow-clockwise"></i> Patch Management</h5>
+                        <div class="admin-only">
+                            <button class="btn btn-success" onclick="installUpdates()">
+                                <i class="bi bi-download"></i> Install Updates
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="patchInfo">
+                            <p class="text-muted">Loading patch information...</p>
+                        </div>
+
+                        <!-- Patch Tabs -->
+                        <ul class="nav nav-pills mt-3" id="patchTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="installed-patches-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#installed-patches" type="button">
+                                    Installed Patches
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="pending-updates-tab" data-bs-toggle="pill" 
+                                        data-bs-target="#pending-updates" type="button">
+                                    Pending Updates
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content mt-3" id="patchTabContent">
+                            <div class="tab-pane fade show active" id="installed-patches" role="tabpanel">
+                                <div id="installedPatchesList"></div>
+                            </div>
+                            <div class="tab-pane fade" id="pending-updates" role="tabpanel">
+                                <div id="pendingUpdatesList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div class="modal fade" id="adminLoginModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Admin Authentication</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adminLoginForm">
+                        <div class="mb-3">
+                            <label for="adminUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="adminUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="adminPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="adminPassword" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="adminLogin()">Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Scan Modal -->
+    <div class="modal fade" id="scheduleScanModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-clock"></i> Schedule Automatic Scan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="scheduleScanForm">
+                        <div class="mb-3">
+                            <label for="scheduleName" class="form-label">Scan Name</label>
+                            <input type="text" class="form-control" id="scheduleName" 
+                                   placeholder="e.g., Daily System Scan" required>
+                        </div>
+                        
+                        <!-- Scheduled Scan Type Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">Scan Type</label>
+                            <div class="d-flex gap-3 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="scheduledScanType" id="scheduledDirectoryScan" value="directory" checked>
+                                    <label class="form-check-label" for="scheduledDirectoryScan">
+                                        <i class="bi bi-folder"></i> Directory Scan
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="scheduledScanType" id="scheduledSystemScan" value="system">
+                                    <label class="form-check-label" for="scheduledSystemScan">
+                                        <i class="bi bi-pc-display"></i> Full System Scan
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="scheduledScanType" id="scheduledQuickScan" value="quick_system">
+                                    <label class="form-check-label" for="scheduledQuickScan">
+                                        <i class="bi bi-lightning-fill"></i> Quick System Scan
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Directory Path Input (conditional) -->
+                        <div class="mb-3" id="scheduledDirectoryPathSection">
+                            <label for="schedulePath" class="form-label">Scan Path</label>
+                            <input type="text" class="form-control" id="schedulePath" 
+                                   placeholder="e.g., C:\Users or C:\" required>
+                            <div class="form-text">Full path to directory to scan automatically</div>
+                        </div>
+
+                        <!-- System Scan Info (conditional) -->
+                        <div class="mb-3" id="scheduledSystemScanInfo" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                <strong id="scheduledScanInfoTitle">Full System Scan</strong> will scan all drives and system directories automatically.
+                                <br><small id="scheduledScanInfoDetails">Comprehensive protection scanning all accessible drives and critical system areas.</small>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="scheduleType" class="form-label">Schedule Type</label>
+                            <select class="form-select" id="scheduleType" required onchange="updateScheduleOptions()">
+                                <option value="">Select frequency...</option>
+                                <option value="interval">Every X Minutes/Hours</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Interval Options -->
+                        <div class="mb-3" id="intervalOptions" style="display: none;">
+                            <label for="intervalValue" class="form-label">Repeat Every</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="intervalValue" min="1" max="1440" value="30">
+                                <select class="form-select" id="intervalUnit" style="max-width: 120px;">
+                                    <option value="minutes">Minutes</option>
+                                    <option value="hours">Hours</option>
+                                </select>
+                            </div>
+                            <div class="form-text">Set how often to repeat the scan (1-1440 minutes or 1-24 hours)</div>
+                        </div>
+                        
+                        <!-- Time Options -->
+                        <div class="mb-3" id="timeOptions">
+                            <label for="scheduleTime" class="form-label">Schedule Time</label>
+                            <input type="time" class="form-control" id="scheduleTime">
+                            <div class="form-text">Time of day to run the scan (24-hour format)</div>
+                        </div>
+                        
+                        <!-- Weekly Options -->
+                        <div class="mb-3" id="weeklyOptions" style="display: none;">
+                            <label for="weeklyDay" class="form-label">Day of Week</label>
+                            <select class="form-select" id="weeklyDay">
+                                <option value="monday">Monday</option>
+                                <option value="tuesday">Tuesday</option>
+                                <option value="wednesday">Wednesday</option>
+                                <option value="thursday">Thursday</option>
+                                <option value="friday">Friday</option>
+                                <option value="saturday">Saturday</option>
+                                <option value="sunday">Sunday</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Monthly Options -->
+                        <div class="mb-3" id="monthlyOptions" style="display: none;">
+                            <label for="monthlyDay" class="form-label">Day of Month</label>
+                            <select class="form-select" id="monthlyDay">
+                                <option value="1">1st</option>
+                                <option value="15">15th</option>
+                                <option value="-1">Last day</option>
+                            </select>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="scheduleEnabled" checked>
+                            <label class="form-check-label" for="scheduleEnabled">
+                                Enable immediately
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createScheduledScan()">
+                        <i class="bi bi-check-circle"></i> Schedule Scan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scheduled Scan Details Modal -->
+    <div class="modal fade" id="scheduledScanDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-clock-history"></i> 
+                        <span id="scheduleDetailsTitle">Scheduled Scan Details</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Schedule Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="bi bi-info-circle"></i> Schedule Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="scheduleInfo">
+                                        <p><strong>Name:</strong> <span id="scheduleName">-</span></p>
+                                        <p><strong>Path:</strong> <span id="schedulePath">-</span></p>
+                                        <p><strong>Schedule:</strong> <span id="scheduleType">-</span></p>
+                                        <p><strong>Status:</strong> <span id="scheduleStatus">-</span></p>
+                                        <p><strong>Total Runs:</strong> <span id="scheduleTotalRuns">0</span></p>
+                                        <p><strong>Last Run:</strong> <span id="scheduleLastRun">Never</span></p>
+                                        <p><strong>Next Run:</strong> <span id="scheduleNextRun">-</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="bi bi-stopwatch"></i> Next Scan Countdown</h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    <div id="countdownTimer" class="display-4 text-primary">
+                                        --:--:--
+                                    </div>
+                                    <p class="text-muted mt-2">Time until next scan</p>
+                                    <div id="countdownStatus" class="mt-3">
+                                        <span class="badge bg-secondary">Waiting for next run</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current Scan Progress (if running) -->
+                    <div id="currentScanProgress" class="card mb-4" style="display: none;">
+                        <div class="card-header bg-primary text-white">
+                            <h6><i class="bi bi-play-circle"></i> Current Scan in Progress</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="progress mb-3">
+                                        <div id="currentScanProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" style="width: 0%">0%</div>
+                                    </div>
+                                    <p><strong>Files Scanned:</strong> <span id="currentScanFiles">0</span> / <span id="currentScanTotal">0</span></p>
+                                    <p><strong>Threats Found:</strong> <span id="currentScanThreats">0</span></p>
+                                    <p><strong>Current File:</strong> <span id="currentScanFile">-</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-header">
+                                            <small><i class="bi bi-list-ul"></i> Live Scan Log</small>
+                                        </div>
+                                        <div class="card-body p-2">
+                                            <div id="liveScanLog" style="height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.85em; background: #f8f9fa; padding: 8px; border-radius: 4px;">
+                                                <div class="text-muted">No active scan...</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scan History -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="bi bi-clock-history"></i> Recent Scan Results</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="scanHistory">
+                                <div class="text-center text-muted">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    <p>Loading scan history...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Scan Logs -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h6><i class="bi bi-file-text"></i> Detailed Scan Logs</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="detailedLogs">
+                                <textarea id="logOutput" class="form-control" rows="12" readonly 
+                                          style="font-family: monospace; font-size: 0.9em; background: #f8f9fa;">
+Select a scan result above to view detailed logs...</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-warning" onclick="toggleSchedule()">
+                        <span id="toggleScheduleText">Disable Schedule</span>
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="deleteSchedule()">
+                        <i class="bi bi-trash"></i> Delete Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>

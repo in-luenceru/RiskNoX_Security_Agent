@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<agent_config>
+	<agent>
+		<id>RiskNoxAgent_Windows</id>
+		<version>1.0.0</version>
+		<log_level>INFO</log_level>
+		<output_directory>scripts</output_directory>
+		<config_directory>config</config_directory>
+		<vendor_directory>vendor</vendor_directory>
+	</agent>
+	<modules>
+		<netblock_monitor enabled="true">
+			<interval_seconds>30</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/netblock_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<blocked_ips_xml>config/blocked_ips.xml</blocked_ips_xml>
+				<push_file>config/netblock_push.json</push_file>
+				<state_file>config/netblock_state.txt</state_file>
+				<api_logs>config/api_logs.xml</api_logs>
+			</files>
+			<server>
+				<url>http://localhost:5000</url>
+				<api_endpoint>/api/agent/rules</api_endpoint>
+				<command_port>9090</command_port>
+			</server>
+			<railway_api_url>http://localhost:8080/api/blocking-stats</railway_api_url>
+			<firewall>
+				<rule_prefix>RiskNox_Block_</rule_prefix>
+				<hosts_file>C:\Windows\System32\drivers\etc\hosts</hosts_file>
+			</firewall>
+		</netblock_monitor>
+		<api_log_ingestion enabled="true">
+			<interval_seconds>10</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/api_log_ingestion.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<http_port>8081</http_port>
+			<files>
+				<xml_file>config/api_logs.xml</xml_file>
+				<url_block_xml>config/blocked_urls.xml</url_block_xml>
+				<unblock_command>config/url_unblock_push.json</unblock_command>
+			</files>
+		</api_log_ingestion>
+		<access_monitor enabled="true">
+			<interval_seconds>15</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/access_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/access_monitor_output.txt</output>
+				<bookmark>scripts/access_monitor_bookmark.txt</bookmark>
+			</files>
+			<thresholds>
+				<max_failed_logins_per_minute>5</max_failed_logins_per_minute>
+			</thresholds>
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/access_logs</endpoint>
+			</server>
+		</access_monitor>
+		<log_monitor enabled="true">
+			<interval_seconds>10</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/log_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/log_monitor_output.txt</output>
+			</files>
+			<event_logs>
+				<item>Application</item>
+				<item>System</item>
+				<item>Security</item>
+			</event_logs>
+			<security_event_ids>
+				<item>4624</item>
+				<item>4625</item>
+				<item>4634</item>
+				<item>4647</item>
+				<item>4672</item>
+				<item>4688</item>
+				<item>4697</item>
+				<item>4720</item>
+				<item>4722</item>
+				<item>4723</item>
+				<item>4724</item>
+				<item>4732</item>
+				<item>4733</item>
+				<item>4756</item>
+				<item>4757</item>
+				<item>4768</item>
+				<item>4769</item>
+				<item>4771</item>
+				<item>4776</item>
+			</security_event_ids>
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/event_logs</endpoint>
+			</server>
+		</log_monitor>
+		<process_monitor enabled="true">
+			<interval_seconds>1</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/process_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/process_monitor_output.txt</output>
+			</files>
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/process_logs</endpoint>
+			</server>
+			<thresholds>
+				<max_process_starts_per_minute>50</max_process_starts_per_minute>
+			</thresholds>
+		</process_monitor>
+		<network_monitor enabled="true">
+			<interval_seconds>1</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/network_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/network_monitor_output.txt</output>
+			</files>
+			<thresholds>
+				<max_connections_per_second>100</max_connections_per_second>
+			</thresholds>
+		</network_monitor>
+		<patch_monitor enabled="true">
+			<interval_seconds>3600</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/patch_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<baseline>config/patch_baseline.json</baseline>
+			</files>
+			<compliance_days>30</compliance_days>
+			<update_frequency_days>7</update_frequency_days>
+			<server>
+				<url>https://pulse-production-2f3b.up.railway.app</url>
+				<endpoint>/patch-management</endpoint>
+			</server>
+		</patch_monitor>
+		<antivirus_monitor enabled="true">
+			<interval_seconds>1800</interval_seconds>
+			<!-- 30 minutes -->
+			<logging enabled="yes">
+				<log_file>scripts/antivirus_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/antivirus_monitor_output.txt</output>
+				<config>vendor/clamav/clamscan.conf</config>
+			</files>
+			<clamav>
+				<path>vendor/clamav</path>
+				<database_path>vendor/clamav/db</database_path>
+				<max_file_size>500M</max_file_size>
+				<max_scan_size>2G</max_scan_size>
+				<max_files>200000</max_files>
+			</clamav>
+			<scan_paths>
+				<item>C:\Users\%USERNAME%\Downloads</item>
+				<!-- Changed to Downloads folder -->
+			</scan_paths>
+			<heuristic_mode>false</heuristic_mode>
+			<!-- Keep heuristics off -->
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/antivirus_logs</endpoint>
+			</server>
+		</antivirus_monitor>
+		<os_hw_monitor enabled="true">
+			<interval_seconds>3000</interval_seconds>
+			<logging enabled="no">
+				<log_file>scripts/os_hw_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/os_hw_monitor_output.txt</output>
+			</files>
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/os_hw_logs</endpoint>
+			</server>
+		</os_hw_monitor>
+		<vuln_monitor enabled="true">
+			<interval_seconds>3600</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/vuln_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/vuln_monitor_output.txt</output>
+			</files>
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/vuln_logs</endpoint>
+			</server>
+		</vuln_monitor>
+		<software_monitor enabled="true">
+			<interval_seconds>3000</interval_seconds>
+			<logging enabled="no">
+				<log_file>scripts/software_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/software_monitor_output.txt</output>
+			</files>
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/software_logs</endpoint>
+			</server>
+		</software_monitor>
+		<user_group_monitor enabled="true">
+			<interval_seconds>3600</interval_seconds>
+			<logging enabled="no">
+				<log_file>scripts/user_group_monitor.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<files>
+				<output>scripts/user_group_monitor_output.txt</output>
+			</files>
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/user_group_logs</endpoint>
+			</server>
+		</user_group_monitor>
+		<status_api_reporter enabled="true">
+			<interval_seconds>60</interval_seconds>
+			<logging enabled="yes">
+				<log_file>scripts/status_api_reporter.log</log_file>
+				<log_level>INFO</log_level>
+			</logging>
+			<server>
+				<url>http://127.0.0.1:8080</url>
+				<endpoint>/status_logs</endpoint>
+			</server>
+		</status_api_reporter>
+	</modules>
+	<global_thresholds>
+		<max_connections_per_second>100</max_connections_per_second>
+		<max_process_starts_per_minute>50</max_process_starts_per_minute>
+		<max_failed_logins_per_minute>10</max_failed_logins_per_minute>
+		<max_file_changes_per_minute>1000</max_file_changes_per_minute>
+	</global_thresholds>
+	<logging>
+		<event_log_file>soc_events.jsonl</event_log_file>
+		<rules_file>soc_agent_rules.json</rules_file>
+		<level>INFO</level>
+		<remote_enabled>true</remote_enabled>
+		<remote_url>https://pulse-production-2f3b.up.railway.app/logs</remote_url>
+		<http_headers>
+			<X-Agent-Id>RiskNoxAgent_Windows</X-Agent-Id>
+			<X-Hostname></X-Hostname>
+			<X-Env>production</X-Env>
+			<X-Auth-Token></X-Auth-Token>
+		</http_headers>
+	</logging>
+</agent_config>

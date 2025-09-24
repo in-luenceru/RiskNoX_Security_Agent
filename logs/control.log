@@ -1,0 +1,79 @@
+[2025-09-24 18:11:35] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:11:35] [INFO] Action: status
+[2025-09-24 18:11:35] [INFO] Checking RiskNoX Security Agent Status...
+[2025-09-24 18:11:35] [WARN] ✗ Backend Service: Stopped
+[2025-09-24 18:11:35] [SUCCESS] ✓ ClamAV Antivirus: Available
+[2025-09-24 18:11:35] [SUCCESS] ✓ Configuration: Available
+[2025-09-24 18:11:35] [SUCCESS] ✓ Logs: 1 log files
+[2025-09-24 18:11:35] [INFO] Operation completed
+[2025-09-24 18:11:43] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:11:43] [INFO] Action: start
+[2025-09-24 18:11:43] [INFO] Checking dependencies...
+[2025-09-24 18:11:43] [SUCCESS] ClamAV scanner found
+[2025-09-24 18:11:43] [SUCCESS] Dependency check completed
+[2025-09-24 18:11:43] [INFO] Starting RiskNoX Security Agent Backend...
+[2025-09-24 18:11:47] [ERROR] Backend failed to start or is not listening on port 5000
+[2025-09-24 18:11:47] [INFO] Operation completed
+[2025-09-24 18:11:54] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:11:54] [INFO] Action: start
+[2025-09-24 18:11:54] [INFO] Checking dependencies...
+[2025-09-24 18:11:54] [SUCCESS] ClamAV scanner found
+[2025-09-24 18:11:54] [SUCCESS] Dependency check completed
+[2025-09-24 18:11:54] [INFO] Starting RiskNoX Security Agent Backend...
+[2025-09-24 18:11:57] [ERROR] Backend failed to start or is not listening on port 5000
+[2025-09-24 18:11:57] [INFO] Operation completed
+[2025-09-24 18:48:40] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:48:40] [INFO] Action: scan
+[2025-09-24 18:48:40] [INFO] Starting antivirus scan on: C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309
+[2025-09-24 18:48:40] [INFO] Executing: C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\vendor\clamscan.exe --recursive --infected --bell --log=logs\manual_scan_20250924_184840.log --database=C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\vendor\database C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309
+[2025-09-24 18:48:57] [INFO] Scan completed with exit code: 1
+[2025-09-24 18:48:57] [INFO] Scan results saved to: logs\manual_scan_20250924_184840.log
+[2025-09-24 18:48:57] [WARN] ⚠ 3 threat(s) detected. Check log file for details.
+[2025-09-24 18:48:57] [INFO] Operation completed
+[2025-09-24 18:48:58] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:48:58] [INFO] Action: scan
+[2025-09-24 18:48:58] [INFO] Starting antivirus scan on: C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309
+[2025-09-24 18:48:58] [INFO] Executing: C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\vendor\clamscan.exe --recursive --infected --bell --log=logs\manual_scan_20250924_184858.log --database=C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\vendor\database C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309
+[2025-09-24 18:49:04] [INFO] Scan completed with exit code: 1
+[2025-09-24 18:49:04] [INFO] Scan results saved to: logs\manual_scan_20250924_184858.log
+[2025-09-24 18:49:04] [WARN] ⚠ 4 threat(s) detected. Check log file for details.
+[2025-09-24 18:49:04] [INFO] Operation completed
+[2025-09-24 18:51:50] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:51:50] [INFO] Action: block
+[2025-09-24 18:51:50] [ERROR] Administrator privileges required for web blocking
+[2025-09-24 18:51:50] [INFO] Operation completed
+[2025-09-24 18:52:00] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:52:00] [INFO] Action: block
+[2025-09-24 18:52:00] [ERROR] Administrator privileges required for web blocking
+[2025-09-24 18:52:00] [INFO] Operation completed
+[2025-09-24 18:52:10] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:52:10] [INFO] Action: help
+[2025-09-24 18:52:10] [INFO] Operation completed
+[2025-09-24 18:54:56] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:54:56] [INFO] Action: block
+[2025-09-24 18:54:56] [ERROR] Administrator privileges required for web blocking
+[2025-09-24 18:54:56] [INFO] Operation completed
+[2025-09-24 18:55:44] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:55:44] [INFO] Action: start
+[2025-09-24 18:55:44] [INFO] Checking dependencies...
+[2025-09-24 18:55:44] [SUCCESS] ClamAV scanner found
+[2025-09-24 18:55:44] [SUCCESS] Dependency check completed
+[2025-09-24 18:55:44] [INFO] Starting RiskNoX Security Agent Backend...
+[2025-09-24 18:55:47] [ERROR] Backend failed to start or is not listening on port 5000
+[2025-09-24 18:55:47] [INFO] Operation completed
+[2025-09-24 18:55:51] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:55:51] [INFO] Action: start
+[2025-09-24 18:55:51] [INFO] Checking dependencies...
+[2025-09-24 18:55:51] [SUCCESS] ClamAV scanner found
+[2025-09-24 18:55:51] [SUCCESS] Dependency check completed
+[2025-09-24 18:55:51] [INFO] Starting RiskNoX Security Agent Backend...
+[2025-09-24 18:55:54] [ERROR] Backend failed to start or is not listening on port 5000
+[2025-09-24 18:55:54] [INFO] Operation completed
+[2025-09-24 18:56:33] [INFO] RiskNoX Security Agent Control Script v1.0.0
+[2025-09-24 18:56:33] [INFO] Action: status
+[2025-09-24 18:56:33] [INFO] Checking RiskNoX Security Agent Status...
+[2025-09-24 18:56:33] [WARN] ✗ Backend Service: Stopped
+[2025-09-24 18:56:33] [SUCCESS] ✓ ClamAV Antivirus: Available
+[2025-09-24 18:56:33] [SUCCESS] ✓ Configuration: Available
+[2025-09-24 18:56:33] [SUCCESS] ✓ Logs: 10 log files
+[2025-09-24 18:56:33] [INFO] Operation completed

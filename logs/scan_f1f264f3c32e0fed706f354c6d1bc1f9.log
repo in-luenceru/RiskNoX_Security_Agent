@@ -1,0 +1,54 @@
+RiskNoX Antivirus Scan Report
+========================================
+Scan Path: C:/Users/ANANDHU/Downloads/RiskNoX_Security_Agent_Service/RiskNoX_Security_Agent_Service_20250916_115309/test_files
+Started: 2025-09-24 20:21:24.160248
+Completed: 2025-09-24 20:21:27.123155
+Duration: 3.0 seconds
+Files Scanned: 7
+Threats Found: 3
+
+THREATS DETECTED:
+--------------------
+C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\fake_malware.txt: Trojan.Generic.Malware
+C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\malware_sample.exe: Trojan.Generic.Malware
+C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\test_virus.doc: Test.Virus.Signature
+
+Scan Log:
+----------
+[20:21:24] 🚀 Initializing RiskNoX Antivirus Engine...
+[20:21:24] 🔧 Loading virus signatures and threat databases...
+[20:21:25] 📦 Creating enhanced threat signatures...
+[20:21:25] 📊 Analyzing directory structure...
+[20:21:25] 📈 Found 7 files to scan
+[20:21:25] 🎯 Starting comprehensive scan of: C:/Users/ANANDHU/Downloads/RiskNoX_Security_Agent_Service/RiskNoX_Security_Agent_Service_20250916_115309/test_files
+[20:21:25] 🔍 Scanning: clean_file.txt
+[20:21:25] 📊 Progress: 14.3% (1/7)
+[20:21:25] 🔍 Scanning: document1.txt
+[20:21:26] 📊 Progress: 28.6% (2/7)
+[20:21:26] 🔍 Scanning: document2.txt
+[20:21:26] 📊 Progress: 42.9% (3/7)
+[20:21:26] 🔍 Scanning: fake_malware.txt
+[20:21:26] 🚨 THREAT DETECTED: Trojan.Generic.Malware
+[20:21:26]    📁 Location: C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\fake_malware.txt
+[20:21:26] 📊 Progress: 57.1% (4/7)
+[20:21:26] 🔍 Scanning: malware_sample.exe
+[20:21:26] 🚨 THREAT DETECTED: Trojan.Generic.Malware
+[20:21:26]    📁 Location: C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\malware_sample.exe
+[20:21:26] 📊 Progress: 71.4% (5/7)
+[20:21:26] 🔍 Scanning: suspicious_executable.exe
+[20:21:26] 📊 Progress: 85.7% (6/7)
+[20:21:26] 🔍 Scanning: test_virus.doc
+[20:21:27] 🚨 THREAT DETECTED: Test.Virus.Signature
+[20:21:27]    📁 Location: C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\test_virus.doc
+[20:21:27] 📊 Progress: 100.0% (7/7)
+[20:21:27] 🏁 Finalizing scan results...
+[20:21:27] 📊 SCAN SUMMARY:
+[20:21:27]    ✅ Files scanned: 7
+[20:21:27]    🎯 Scan coverage: 100%
+[20:21:27]    🦠 Threats detected: 3
+[20:21:27] 🚨 SECURITY ALERT: 3 threats found!
+[20:21:27] ⚠️ ACTION REQUIRED: Review and quarantine threats
+[20:21:27]    1. Trojan.Generic.Malware in fake_malware.txt
+[20:21:27]    2. Trojan.Generic.Malware in malware_sample.exe
+[20:21:27]    3. Test.Virus.Signature in test_virus.doc
+[20:21:27] ⏱️ Total scan time: 3.0 seconds

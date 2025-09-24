@@ -1,0 +1,16 @@
+
+-------------------------------------------------------------------------------
+
+ERROR: Can't verify database integrity
+
+----------- SCAN SUMMARY -----------
+Known viruses: 0
+Engine version: 1.4.3
+Scanned directories: 0
+Scanned files: 0
+Infected files: 0
+Data scanned: 0.00 MB
+Data read: 0.00 MB (ratio 0.00:1)
+Time: 0.535 sec (0 m 0 s)
+Start Date: 2025:09:24 18:18:29
+End Date:   2025:09:24 18:18:30

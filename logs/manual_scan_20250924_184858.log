@@ -1,0 +1,19 @@
+
+-------------------------------------------------------------------------------
+
+C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\backend_server.py: TestVirus.UNOFFICIAL FOUND
+C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\logs\manual_scan_20250924_184840.log: TestVirus.UNOFFICIAL FOUND
+C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\logs\manual_scan_20250924_184858.log: TestVirus.UNOFFICIAL FOUND
+C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\vendor\database\basic.ndb: TestVirus.UNOFFICIAL FOUND
+
+----------- SCAN SUMMARY -----------
+Known viruses: 5
+Engine version: 1.4.3
+Scanned directories: 277
+Scanned files: 1805
+Infected files: 4
+Data scanned: 97.12 MB
+Data read: 81.41 MB (ratio 1.19:1)
+Time: 5.314 sec (0 m 5 s)
+Start Date: 2025:09:24 18:48:58
+End Date:   2025:09:24 18:49:03

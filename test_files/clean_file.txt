@@ -1,0 +1,3 @@
+This is a clean test file for scanning verification.
+It contains no viruses or malware.
+Created for testing purposes only.

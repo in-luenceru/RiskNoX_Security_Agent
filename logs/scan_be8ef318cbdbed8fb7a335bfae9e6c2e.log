@@ -1,0 +1,18 @@
+
+-------------------------------------------------------------------------------
+
+Scanning C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\clean_file.txt
+Scanning C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\fake_malware.txt
+C:\Users\ANANDHU\Downloads\RiskNoX_Security_Agent_Service\RiskNoX_Security_Agent_Service_20250916_115309\test_files\fake_malware.txt: TestVirus.UNOFFICIAL FOUND
+
+----------- SCAN SUMMARY -----------
+Known viruses: 5
+Engine version: 1.4.3
+Scanned directories: 1
+Scanned files: 2
+Infected files: 1
+Data scanned: 0.00 MB
+Data read: 0.00 MB (ratio 0.00:1)
+Time: 0.023 sec (0 m 0 s)
+Start Date: 2025:09:24 19:52:42
+End Date:   2025:09:24 19:52:42
