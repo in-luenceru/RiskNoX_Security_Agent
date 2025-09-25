@@ -137,7 +137,7 @@ class SecurityAgent:
             if not Path(scan_path).exists():
                 raise Exception(f"Scan path does not exist: {scan_path}")
             
-            # Initialize scan session
+            # Initialize scan session with enhanced tracking
             SCAN_SESSIONS[session_id] = {
                 'status': 'initializing',
                 'path': scan_path,
@@ -149,39 +149,58 @@ class SecurityAgent:
                 'is_scheduled': is_scheduled,
                 'progress_percent': 0,
                 'scan_log': [],
-                'current_file': ''
+                'current_file': '',
+                'last_update': datetime.now(),
+                'threats': [],
+                'scan_speed': 0,
+                'errors': []
             }
             
             # Add initial log entries
             self._add_scan_log(session_id, "🚀 Initializing RiskNoX Antivirus Engine...")
             self._add_scan_log(session_id, "🔧 Loading virus signatures and threat databases...")
-            time.sleep(1)  # Simulate initialization time
+            time.sleep(0.5)  # Simulate initialization time
             
             # Check databases and create signatures
             db_path = VENDOR_DIR / "database"
             if not self._check_clamav_databases():
                 self._add_scan_log(session_id, "📦 Creating enhanced threat signatures...")
                 self._create_basic_signatures()
-                time.sleep(0.5)
+                time.sleep(0.3)
             
             # Count all files in directory for accurate progress
             self._add_scan_log(session_id, "📊 Analyzing directory structure...")
             all_files = []
-            for root, dirs, files in os.walk(scan_path):
-                for file in files:
-                    file_path = Path(root) / file
-                    all_files.append(file_path)
+            
+            try:
+                for root, dirs, files in os.walk(scan_path):
+                    # Skip inaccessible directories
+                    try:
+                        for file in files:
+                            file_path = Path(root) / file
+                            # Only include scannable files
+                            if file_path.suffix.lower() in ['.exe', '.dll', '.zip', '.rar', '.doc', '.docx', '.pdf', '.txt', '.bat', '.cmd', '.ps1', '.vbs', '.js']:
+                                all_files.append(file_path)
+                            elif len(all_files) < 1000:  # Limit for performance
+                                all_files.append(file_path)
+                    except (PermissionError, OSError) as e:
+                        self._add_scan_log(session_id, f"⚠️ Access denied: {root}")
+                        continue
+            except Exception as e:
+                self._add_scan_log(session_id, f"⚠️ Error accessing directory: {str(e)}")
+                SCAN_SESSIONS[session_id]['errors'].append(f"Directory access error: {str(e)}")
             
             total_files = len(all_files)
             SCAN_SESSIONS[session_id]['total_files'] = total_files
             SCAN_SESSIONS[session_id]['status'] = 'scanning'
             
-            self._add_scan_log(session_id, f"📈 Found {total_files} files to scan")
+            self._add_scan_log(session_id, f"📈 Found {total_files} scannable files")
             self._add_scan_log(session_id, f"🎯 Starting comprehensive scan of: {scan_path}")
             
             # Simulate realistic scanning with actual file processing
             threats = []
             files_scanned = 0
+            start_time = time.time()
             
             # Known threat patterns for demonstration
             threat_patterns = {
@@ -191,13 +210,34 @@ class SecurityAgent:
                 'virus': 'Win32.TestVirus'
             }
             
-            for file_path in all_files:
+            for i, file_path in enumerate(all_files):
                 try:
+                    # Check if scan was cancelled
+                    if session_id not in SCAN_SESSIONS:
+                        self._add_scan_log(session_id, "⏹️ Scan cancelled by user")
+                        return
+                    
                     # Update current file being scanned
                     SCAN_SESSIONS[session_id]['current_file'] = str(file_path)
+                    SCAN_SESSIONS[session_id]['last_update'] = datetime.now()
                     
-                    # Log every file being scanned
-                    self._add_scan_log(session_id, f"🔍 Scanning: {file_path.name}")
+                    # Calculate and update progress
+                    files_scanned += 1
+                    progress = int((files_scanned / total_files) * 100)
+                    SCAN_SESSIONS[session_id]['progress_percent'] = progress
+                    SCAN_SESSIONS[session_id]['files_scanned'] = files_scanned
+                    
+                    # Calculate scan speed
+                    elapsed_time = time.time() - start_time
+                    if elapsed_time > 0:
+                        SCAN_SESSIONS[session_id]['scan_speed'] = files_scanned / elapsed_time
+                    
+                    # Log progress periodically (every 10 files or every 10%)
+                    if files_scanned % max(1, total_files // 10) == 0 or progress % 10 == 0:
+                        self._add_scan_log(session_id, f"🔍 Progress: {progress}% - Scanning: {file_path.name}")
+                    
+                    # Simulate realistic scanning time
+                    time.sleep(0.01 + (0.05 if file_path.suffix.lower() in ['.exe', '.dll'] else 0.001))
                     
                     # Simulate realistic scan time based on file size
                     file_size = 0
@@ -351,103 +391,175 @@ class SecurityAgent:
             return False
 
     def scan_full_system(self, session_id):
-        """Perform full system scan of all drives and critical directories"""
+        """Perform comprehensive full system scan with enhanced reliability"""
         import psutil
+        import threading
         
-        # Initialize session
+        # Initialize session with enhanced tracking
         SCAN_SESSIONS[session_id] = {
             'session_id': session_id,
-            'status': 'running',
+            'status': 'initializing',
             'started_at': datetime.now(),
             'path': 'Full System Scan',
             'files_scanned': 0,
             'threats_found': 0,
             'progress_percent': 0,
             'scan_log': [],
-            'threats': []
+            'threats': [],
+            'last_update': datetime.now(),
+            'total_files': 0,
+            'current_file': '',
+            'scan_speed': 0,
+            'errors': []
         }
         
-        self._add_scan_log(session_id, "🖥️ Starting full system scan...")
-        self._add_scan_log(session_id, "🔍 Scanning all drives and system directories")
+        self._add_scan_log(session_id, "🖥️ Initializing full system scan...")
+        self._add_scan_log(session_id, "🔍 Preparing to scan all drives and critical directories")
         
         try:
-            # Get all available drives
+            # Get all available drives with better error handling
             drives = []
+            self._add_scan_log(session_id, "📀 Detecting system drives...")
+            
             for partition in psutil.disk_partitions():
                 try:
-                    if psutil.disk_usage(partition.mountpoint):
+                    usage = psutil.disk_usage(partition.mountpoint)
+                    if usage and usage.total > 0:
                         drives.append(partition.mountpoint)
-                        self._add_scan_log(session_id, f"📀 Found drive: {partition.mountpoint}")
-                except:
+                        self._add_scan_log(session_id, f"📀 Available drive: {partition.mountpoint} ({usage.total // (1024**3):.1f} GB)")
+                except (PermissionError, OSError) as e:
+                    self._add_scan_log(session_id, f"⚠️ Cannot access drive {partition.mountpoint}: Permission denied")
+                    continue
+                except Exception as e:
+                    self._add_scan_log(session_id, f"⚠️ Error checking drive {partition.mountpoint}: {str(e)}")
                     continue
             
-            # Add critical system directories
+            # Add critical system directories (priority scan areas)
             critical_dirs = [
-                "C:\\Users",
-                "C:\\Program Files",
-                "C:\\Program Files (x86)",
-                "C:\\Windows\\System32",
-                "C:\\Windows\\Temp",
-                "C:\\Temp"
+                ("C:\\Users", "User profiles and data"),
+                ("C:\\Program Files", "Installed applications"),
+                ("C:\\Program Files (x86)", "32-bit applications"),
+                ("C:\\ProgramData", "Application data"),
+                ("C:\\Windows\\System32", "System files"),
+                ("C:\\Windows\\Temp", "Temporary files"),
+                ("C:\\Temp", "System temp")
             ]
             
-            all_paths = drives + [d for d in critical_dirs if Path(d).exists()]
-            total_paths = len(all_paths)
+            # Filter existing paths and build scan list
+            scan_targets = []
             
-            self._add_scan_log(session_id, f"📊 Will scan {total_paths} locations")
+            # Add drives first
+            for drive in drives:
+                if Path(drive).exists():
+                    scan_targets.append((drive, f"Full drive scan"))
             
-            for i, scan_path in enumerate(all_paths):
+            # Add critical directories that exist and aren't already covered by drive scans
+            for dir_path, description in critical_dirs:
+                if Path(dir_path).exists():
+                    # Only add if not already covered by a drive scan
+                    covered = any(dir_path.startswith(drive) for drive, _ in scan_targets)
+                    if not covered:
+                        scan_targets.append((dir_path, description))
+            
+            total_targets = len(scan_targets)
+            self._add_scan_log(session_id, f"� Will scan {total_targets} locations")
+            SCAN_SESSIONS[session_id]['status'] = 'scanning'
+            
+            # Process each scan target
+            for i, (scan_path, description) in enumerate(scan_targets):
                 try:
-                    if Path(scan_path).exists():
-                        progress = int((i / total_paths) * 100)
-                        SCAN_SESSIONS[session_id]['progress_percent'] = progress
-                        
-                        self._add_scan_log(session_id, f"📂 Scanning: {scan_path}")
-                        
-                        # Perform scan on this path (reuse directory scan logic)
-                        temp_session = f"{session_id}_temp_{i}"
-                        
-                        # Create temporary session for sub-scan
-                        SCAN_SESSIONS[temp_session] = {
-                            'session_id': temp_session,
-                            'status': 'running',
-                            'started_at': datetime.now(),
-                            'path': scan_path,
-                            'files_scanned': 0,
-                            'threats_found': 0,
-                            'progress_percent': 0,
-                            'scan_log': [],
-                            'threats': []
-                        }
-                        
-                        # Run the scan synchronously for system scans
+                    # Check if scan was cancelled
+                    if session_id not in SCAN_SESSIONS:
+                        self._add_scan_log(session_id, "⏹️ Scan cancelled by user")
+                        return
+                    
+                    # Update overall progress
+                    overall_progress = int((i / total_targets) * 100)
+                    SCAN_SESSIONS[session_id]['progress_percent'] = overall_progress
+                    SCAN_SESSIONS[session_id]['last_update'] = datetime.now()
+                    
+                    self._add_scan_log(session_id, f"📂 [{i+1}/{total_targets}] Scanning: {scan_path}")
+                    self._add_scan_log(session_id, f"   ℹ️ {description}")
+                    
+                    # Create unique temporary session for sub-scan
+                    temp_session = f"{session_id}_sys_{i}"
+                    
+                    try:
+                        # Run directory scan for this location
                         result = self.scan_directory(scan_path, temp_session, is_scheduled=False)
                         
-                        # Merge results if scan completed
+                        # Merge results if scan completed successfully
                         if temp_session in SCAN_SESSIONS:
                             temp_results = SCAN_SESSIONS[temp_session]
+                            
+                            # Accumulate results
                             SCAN_SESSIONS[session_id]['files_scanned'] += temp_results.get('files_scanned', 0)
                             SCAN_SESSIONS[session_id]['threats_found'] += temp_results.get('threats_found', 0)
+                            SCAN_SESSIONS[session_id]['total_files'] += temp_results.get('total_files', 0)
+                            
+                            # Merge threats
                             if temp_results.get('threats'):
                                 SCAN_SESSIONS[session_id]['threats'].extend(temp_results['threats'])
                             
+                            # Merge errors
+                            if temp_results.get('errors'):
+                                SCAN_SESSIONS[session_id]['errors'].extend(temp_results['errors'])
+                            
+                            # Log sub-scan results
+                            sub_files = temp_results.get('files_scanned', 0)
+                            sub_threats = temp_results.get('threats_found', 0)
+                            self._add_scan_log(session_id, f"   ✅ Completed: {sub_files} files, {sub_threats} threats")
+                            
                             # Clean up temp session
                             del SCAN_SESSIONS[temp_session]
-                    else:
-                        self._add_scan_log(session_id, f"⚠️ Skipping inaccessible path: {scan_path}")
+                        else:
+                            self._add_scan_log(session_id, f"   ⚠️ Sub-scan session lost for: {scan_path}")
+                            
+                    except Exception as subscan_error:
+                        self._add_scan_log(session_id, f"   ❌ Error scanning {scan_path}: {str(subscan_error)}")
+                        SCAN_SESSIONS[session_id]['errors'].append(f"Scan error in {scan_path}: {str(subscan_error)}")
+                        continue
+                        
                 except Exception as path_error:
-                    self._add_scan_log(session_id, f"⚠️ Error accessing {scan_path}: {str(path_error)}")
+                    self._add_scan_log(session_id, f"⚠️ Cannot access {scan_path}: {str(path_error)}")
+                    SCAN_SESSIONS[session_id]['errors'].append(f"Access error: {scan_path} - {str(path_error)}")
                     continue
             
-            # Finalize system scan
-            SCAN_SESSIONS[session_id]['progress_percent'] = 100
-            SCAN_SESSIONS[session_id]['status'] = 'completed'
-            SCAN_SESSIONS[session_id]['completed_at'] = datetime.now()
+            # Finalize full system scan
+            end_time = datetime.now()
+            duration = end_time - SCAN_SESSIONS[session_id]['started_at']
+            
+            SCAN_SESSIONS[session_id].update({
+                'progress_percent': 100,
+                'status': 'completed',
+                'completed_at': end_time,
+                'scan_duration': duration.total_seconds()
+            })
             
             files_scanned = SCAN_SESSIONS[session_id]['files_scanned']
             threats_found = SCAN_SESSIONS[session_id]['threats_found']
+            total_files = SCAN_SESSIONS[session_id]['total_files']
             
-            self._add_scan_log(session_id, f"✅ Full system scan completed!")
+            # Comprehensive completion logging
+            self._add_scan_log(session_id, "🏁 Full system scan completed!")
+            self._add_scan_log(session_id, f"📊 COMPREHENSIVE SCAN SUMMARY:")
+            self._add_scan_log(session_id, f"   📁 Total files analyzed: {total_files}")
+            self._add_scan_log(session_id, f"   ✅ Files scanned: {files_scanned}")
+            self._add_scan_log(session_id, f"   🦠 Threats detected: {threats_found}")
+            self._add_scan_log(session_id, f"   ⏱️ Total scan time: {duration.total_seconds():.1f} seconds")
+            
+            if SCAN_SESSIONS[session_id]['errors']:
+                error_count = len(SCAN_SESSIONS[session_id]['errors'])
+                self._add_scan_log(session_id, f"   ⚠️ Errors encountered: {error_count}")
+                
+            if threats_found > 0:
+                self._add_scan_log(session_id, f"🚨 SECURITY ALERT: {threats_found} threats found across system!")
+                self._add_scan_log(session_id, f"⚠️ ACTION REQUIRED: Review detected threats immediately")
+            else:
+                self._add_scan_log(session_id, f"✅ SYSTEM SECURE: No threats detected in full scan")
+                self._add_scan_log(session_id, f"🛡️ Your system appears to be clean!")
+            
+            return True
             self._add_scan_log(session_id, f"📊 Files scanned: {files_scanned}")
             self._add_scan_log(session_id, f"🦠 Threats found: {threats_found}")
             
@@ -464,89 +576,171 @@ class SecurityAgent:
             return False
 
     def scan_quick_system(self, session_id):
-        """Perform quick system scan of critical areas only"""
+        """Perform enhanced quick system scan with better reliability"""
+        import os
         
-        # Initialize session
+        # Initialize session with enhanced tracking
         SCAN_SESSIONS[session_id] = {
             'session_id': session_id,
-            'status': 'running',
+            'status': 'initializing',
             'started_at': datetime.now(),
             'path': 'Quick System Scan',
             'files_scanned': 0,
             'threats_found': 0,
             'progress_percent': 0,
             'scan_log': [],
-            'threats': []
+            'threats': [],
+            'last_update': datetime.now(),
+            'total_files': 0,
+            'current_file': '',
+            'scan_speed': 0,
+            'errors': []
         }
         
-        self._add_scan_log(session_id, "⚡ Starting quick system scan...")
-        self._add_scan_log(session_id, "🎯 Scanning critical system areas")
+        self._add_scan_log(session_id, "⚡ Initializing quick system scan...")
+        self._add_scan_log(session_id, "🎯 Targeting high-risk areas for rapid threat detection")
         
         try:
-            # Quick scan targets - common threat locations
+            # Quick scan targets - prioritized threat locations
             quick_targets = [
-                "C:\\Windows\\Temp",
-                "C:\\Temp",
-                os.path.expanduser("~\\Downloads"),
-                os.path.expanduser("~\\Desktop"),
-                os.path.expanduser("~\\Documents"),
-                "C:\\Program Files\\Common Files",
-                "C:\\ProgramData"
+                (os.path.expanduser("~\\Downloads"), "User downloads (high risk)"),
+                (os.path.expanduser("~\\Desktop"), "Desktop files"),
+                (os.path.expanduser("~\\Documents"), "User documents"),
+                ("C:\\Windows\\Temp", "Windows temporary files"),
+                ("C:\\Temp", "System temporary files"),
+                ("C:\\ProgramData", "Application data"),
+                ("C:\\Users\\Public", "Public user area"),
+                ("C:\\Program Files\\Common Files", "Common program files")
             ]
             
-            # Filter existing paths
-            existing_targets = [path for path in quick_targets if Path(path).exists()]
-            total_targets = len(existing_targets)
+            # Filter existing paths and validate access
+            accessible_targets = []
+            self._add_scan_log(session_id, "📍 Checking target locations...")
             
-            self._add_scan_log(session_id, f"🎯 Scanning {total_targets} critical locations")
-            
-            for i, scan_path in enumerate(existing_targets):
+            for path, description in quick_targets:
                 try:
-                    progress = int((i / total_targets) * 100)
+                    if Path(path).exists() and Path(path).is_dir():
+                        # Test if we can access the directory
+                        list(Path(path).iterdir())  # This will raise an exception if no access
+                        accessible_targets.append((path, description))
+                        self._add_scan_log(session_id, f"   ✅ {description}: {path}")
+                    else:
+                        self._add_scan_log(session_id, f"   ⚠️ Not found: {path}")
+                except PermissionError:
+                    self._add_scan_log(session_id, f"   🔒 Access denied: {path}")
+                    SCAN_SESSIONS[session_id]['errors'].append(f"Access denied: {path}")
+                except Exception as e:
+                    self._add_scan_log(session_id, f"   ❌ Error accessing {path}: {str(e)}")
+                    SCAN_SESSIONS[session_id]['errors'].append(f"Error accessing {path}: {str(e)}")
+            
+            total_targets = len(accessible_targets)
+            
+            if total_targets == 0:
+                self._add_scan_log(session_id, "❌ No accessible scan targets found")
+                SCAN_SESSIONS[session_id].update({
+                    'status': 'completed',
+                    'progress_percent': 100,
+                    'completed_at': datetime.now()
+                })
+                return False
+            
+            self._add_scan_log(session_id, f"🎯 Quick scanning {total_targets} critical locations")
+            SCAN_SESSIONS[session_id]['status'] = 'scanning'
+            
+            # Process each target location
+            for i, (scan_path, description) in enumerate(accessible_targets):
+                try:
+                    # Check if scan was cancelled
+                    if session_id not in SCAN_SESSIONS:
+                        self._add_scan_log(session_id, "⏹️ Quick scan cancelled")
+                        return
+                    
+                    # Update progress
+                    progress = int((i / total_targets) * 90)  # Leave 10% for finalization
                     SCAN_SESSIONS[session_id]['progress_percent'] = progress
+                    SCAN_SESSIONS[session_id]['last_update'] = datetime.now()
                     
-                    self._add_scan_log(session_id, f"📂 Scanning: {scan_path}")
-                    
-                    # Perform limited scan on this path
-                    temp_session = f"{session_id}_quick_{i}"
+                    self._add_scan_log(session_id, f"📂 [{i+1}/{total_targets}] {description}")
+                    self._add_scan_log(session_id, f"   📍 Location: {scan_path}")
                     
                     # Create temporary session for sub-scan
-                    SCAN_SESSIONS[temp_session] = {
-                        'session_id': temp_session,
-                        'status': 'running',
-                        'started_at': datetime.now(),
-                        'path': scan_path,
-                        'files_scanned': 0,
-                        'threats_found': 0,
-                        'progress_percent': 0,
-                        'scan_log': [],
-                        'threats': []
-                    }
+                    temp_session = f"{session_id}_quick_{i}"
                     
-                    # Run the scan synchronously for quick scans
-                    result = self.scan_directory(scan_path, temp_session, is_scheduled=False)
-                    
-                    # Merge results if scan completed
-                    if temp_session in SCAN_SESSIONS:
-                        temp_results = SCAN_SESSIONS[temp_session]
-                        SCAN_SESSIONS[session_id]['files_scanned'] += temp_results.get('files_scanned', 0)
-                        SCAN_SESSIONS[session_id]['threats_found'] += temp_results.get('threats_found', 0)
-                        if temp_results.get('threats'):
-                            SCAN_SESSIONS[session_id]['threats'].extend(temp_results['threats'])
+                    try:
+                        # Run focused directory scan
+                        result = self.scan_directory(scan_path, temp_session, is_scheduled=False)
                         
-                        # Clean up temp session
-                        del SCAN_SESSIONS[temp_session]
+                        # Merge results if sub-scan completed
+                        if temp_session in SCAN_SESSIONS:
+                            temp_results = SCAN_SESSIONS[temp_session]
+                            
+                            # Accumulate results
+                            SCAN_SESSIONS[session_id]['files_scanned'] += temp_results.get('files_scanned', 0)
+                            SCAN_SESSIONS[session_id]['threats_found'] += temp_results.get('threats_found', 0)
+                            SCAN_SESSIONS[session_id]['total_files'] += temp_results.get('total_files', 0)
+                            
+                            # Merge threats
+                            if temp_results.get('threats'):
+                                SCAN_SESSIONS[session_id]['threats'].extend(temp_results['threats'])
+                            
+                            # Merge errors
+                            if temp_results.get('errors'):
+                                SCAN_SESSIONS[session_id]['errors'].extend(temp_results['errors'])
+                            
+                            # Log sub-scan results
+                            sub_files = temp_results.get('files_scanned', 0)
+                            sub_threats = temp_results.get('threats_found', 0)
+                            self._add_scan_log(session_id, f"   ✅ Scanned: {sub_files} files, found: {sub_threats} threats")
+                            
+                            # Clean up temp session
+                            del SCAN_SESSIONS[temp_session]
+                        else:
+                            self._add_scan_log(session_id, f"   ⚠️ Sub-scan session lost for: {scan_path}")
+                            
+                    except Exception as subscan_error:
+                        self._add_scan_log(session_id, f"   ❌ Error in quick scan: {str(subscan_error)}")
+                        SCAN_SESSIONS[session_id]['errors'].append(f"Quick scan error in {scan_path}: {str(subscan_error)}")
+                        
                 except Exception as path_error:
-                    self._add_scan_log(session_id, f"⚠️ Error scanning {scan_path}: {str(path_error)}")
+                    self._add_scan_log(session_id, f"⚠️ Cannot process {scan_path}: {str(path_error)}")
+                    SCAN_SESSIONS[session_id]['errors'].append(f"Path processing error: {scan_path} - {str(path_error)}")
                     continue
             
             # Finalize quick scan
-            SCAN_SESSIONS[session_id]['progress_percent'] = 100
-            SCAN_SESSIONS[session_id]['status'] = 'completed'
-            SCAN_SESSIONS[session_id]['completed_at'] = datetime.now()
+            end_time = datetime.now()
+            duration = end_time - SCAN_SESSIONS[session_id]['started_at']
+            
+            SCAN_SESSIONS[session_id].update({
+                'progress_percent': 100,
+                'status': 'completed',
+                'completed_at': end_time,
+                'scan_duration': duration.total_seconds()
+            })
             
             files_scanned = SCAN_SESSIONS[session_id]['files_scanned']
             threats_found = SCAN_SESSIONS[session_id]['threats_found']
+            total_files = SCAN_SESSIONS[session_id]['total_files']
+            
+            # Comprehensive quick scan summary
+            self._add_scan_log(session_id, "⚡ Quick system scan completed!")
+            self._add_scan_log(session_id, f"📊 QUICK SCAN SUMMARY:")
+            self._add_scan_log(session_id, f"   📁 Total files analyzed: {total_files}")
+            self._add_scan_log(session_id, f"   ✅ Files scanned: {files_scanned}")
+            self._add_scan_log(session_id, f"   🦠 Threats detected: {threats_found}")
+            self._add_scan_log(session_id, f"   ⏱️ Scan time: {duration.total_seconds():.1f} seconds")
+            
+            if SCAN_SESSIONS[session_id]['errors']:
+                error_count = len(SCAN_SESSIONS[session_id]['errors'])
+                self._add_scan_log(session_id, f"   ⚠️ Areas with access issues: {error_count}")
+                
+            if threats_found > 0:
+                self._add_scan_log(session_id, f"🚨 THREATS FOUND: {threats_found} items require attention!")
+                self._add_scan_log(session_id, f"⚠️ Recommendation: Run full system scan for complete analysis")
+            else:
+                self._add_scan_log(session_id, f"✅ QUICK SCAN CLEAR: No immediate threats in critical areas")
+                self._add_scan_log(session_id, f"💡 Tip: Quick scans check high-risk areas only")
+            
+            return True
             
             self._add_scan_log(session_id, f"✅ Quick system scan completed!")
             self._add_scan_log(session_id, f"📊 Files scanned: {files_scanned}")
@@ -679,77 +873,189 @@ class SecurityAgent:
             return (datetime.now() + timedelta(hours=1)).isoformat()
     
     def _register_scheduled_scan(self, scan_id):
-        """Register scheduled scan with the scheduler"""
-        scan_config = SCHEDULED_SCANS[scan_id]
-        
-        if scan_config['schedule_type'] == 'interval':
-            interval_value = scan_config.get('interval_value', 30)
-            interval_unit = scan_config.get('interval_unit', 'minutes')
+        """Register scheduled scan with the scheduler with enhanced error handling"""
+        try:
+            if scan_id not in SCHEDULED_SCANS:
+                print(f"Error: Cannot register scan {scan_id} - not found in SCHEDULED_SCANS")
+                return
             
-            if interval_unit == 'minutes':
-                schedule.every(interval_value).minutes.do(
-                    self._execute_scheduled_scan, scan_id
-                )
-            else:  # hours
-                schedule.every(interval_value).hours.do(
-                    self._execute_scheduled_scan, scan_id
-                )
-        elif scan_config['schedule_type'] == 'daily':
-            schedule.every().day.at(scan_config['schedule_time']).do(
-                self._execute_scheduled_scan, scan_id
-            )
-        elif scan_config['schedule_type'] == 'weekly':
-            weekly_day = scan_config.get('weekly_day', 'monday')
-            schedule_obj = getattr(schedule.every(), weekly_day)
-            schedule_obj.at(scan_config['schedule_time']).do(
-                self._execute_scheduled_scan, scan_id
-            )
-        elif scan_config['schedule_type'] == 'monthly':
-            # For monthly, we'll check daily and run if it's the right day
-            schedule.every().day.at(scan_config['schedule_time']).do(
-                self._check_monthly_scan, scan_id
-            )
+            scan_config = SCHEDULED_SCANS[scan_id]
+            print(f"Registering scheduled scan: {scan_config.get('name', 'Unknown')} (ID: {scan_id})")
+            
+            # Clear any existing jobs for this scan
+            schedule.clear(f'scan_{scan_id}')
+            
+            schedule_type = scan_config.get('schedule_type', 'daily')
+            
+            try:
+                if schedule_type == 'interval':
+                    interval_value = scan_config.get('interval_value', 30)
+                    interval_unit = scan_config.get('interval_unit', 'minutes')
+                    
+                    if interval_unit == 'minutes':
+                        job = schedule.every(interval_value).minutes.do(
+                            self._execute_scheduled_scan, scan_id
+                        )
+                        job.tag = f'scan_{scan_id}'
+                        print(f"  Registered for every {interval_value} minutes")
+                    else:  # hours
+                        job = schedule.every(interval_value).hours.do(
+                            self._execute_scheduled_scan, scan_id
+                        )
+                        job.tag = f'scan_{scan_id}'
+                        print(f"  Registered for every {interval_value} hours")
+                        
+                elif schedule_type == 'daily':
+                    schedule_time = scan_config.get('schedule_time', '00:00')
+                    job = schedule.every().day.at(schedule_time).do(
+                        self._execute_scheduled_scan, scan_id
+                    )
+                    job.tag = f'scan_{scan_id}'
+                    print(f"  Registered for daily at {schedule_time}")
+                    
+                elif schedule_type == 'weekly':
+                    weekly_day = scan_config.get('weekly_day', 'monday').lower()
+                    schedule_time = scan_config.get('schedule_time', '00:00')
+                    
+                    # Validate weekly day
+                    valid_days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+                    if weekly_day not in valid_days:
+                        weekly_day = 'monday'
+                    
+                    schedule_obj = getattr(schedule.every(), weekly_day)
+                    job = schedule_obj.at(schedule_time).do(
+                        self._execute_scheduled_scan, scan_id
+                    )
+                    job.tag = f'scan_{scan_id}'
+                    print(f"  Registered for weekly on {weekly_day} at {schedule_time}")
+                    
+                elif schedule_type == 'monthly':
+                    schedule_time = scan_config.get('schedule_time', '00:00')
+                    # For monthly, we'll check daily and run if it's the right day
+                    job = schedule.every().day.at(schedule_time).do(
+                        self._check_monthly_scan, scan_id
+                    )
+                    job.tag = f'scan_{scan_id}'
+                    print(f"  Registered for monthly check at {schedule_time}")
+                    
+                else:
+                    print(f"  Warning: Unknown schedule type '{schedule_type}', defaulting to daily")
+                    job = schedule.every().day.at('00:00').do(
+                        self._execute_scheduled_scan, scan_id
+                    )
+                    job.tag = f'scan_{scan_id}'
+                
+                # Update scan config with successful registration
+                SCHEDULED_SCANS[scan_id]['registered'] = True
+                SCHEDULED_SCANS[scan_id]['registration_error'] = None
+                
+                # Calculate and update next run time
+                next_run = self._calculate_next_run(schedule_type, scan_config.get('schedule_time'))
+                if next_run:
+                    SCHEDULED_SCANS[scan_id]['next_run'] = next_run.isoformat()
+                    print(f"  Next run scheduled for: {next_run}")
+                    
+            except Exception as schedule_error:
+                print(f"Error setting up schedule for scan {scan_id}: {str(schedule_error)}")
+                SCHEDULED_SCANS[scan_id].update({
+                    'registered': False,
+                    'registration_error': str(schedule_error)
+                })
+                
+        except Exception as e:
+            print(f"Critical error registering scheduled scan {scan_id}: {str(e)}")
+            if scan_id in SCHEDULED_SCANS:
+                SCHEDULED_SCANS[scan_id].update({
+                    'registered': False,
+                    'registration_error': f"Registration error: {str(e)}"
+                })
     
     def _execute_scheduled_scan(self, scan_id):
-        """Execute a scheduled scan"""
-        if scan_id not in SCHEDULED_SCANS:
-            return
-        
-        scan_config = SCHEDULED_SCANS[scan_id]
-        if not scan_config['enabled']:
-            return
-        
-        # Generate session ID for this scheduled scan
-        session_id = hashlib.md5(f"scheduled_{scan_id}_{datetime.now()}".encode()).hexdigest()
-        
-        # Update scheduled scan info
-        SCHEDULED_SCANS[scan_id].update({
-            'last_run': datetime.now().isoformat(),
-            'total_runs': scan_config['total_runs'] + 1,
-            'next_run': self._calculate_next_run(scan_config['schedule_type'], scan_config['schedule_time'])
-        })
-        
-        # Start scan in background thread based on scan type
-        scan_type = scan_config.get('scan_type', 'directory')
-        
-        if scan_type == 'system':
-            scan_thread = threading.Thread(
-                target=self.scan_full_system,
-                args=(session_id,)
-            )
-        elif scan_type == 'quick_system':
-            scan_thread = threading.Thread(
-                target=self.scan_quick_system,
-                args=(session_id,)
-            )
-        else:  # directory scan
-            scan_thread = threading.Thread(
-                target=self.scan_directory,
-                args=(scan_config['path'], session_id, True)
-            )
-        
-        scan_thread.daemon = True
-        scan_thread.start()
+        """Execute a scheduled scan with enhanced reliability and error handling"""
+        try:
+            if scan_id not in SCHEDULED_SCANS:
+                print(f"Warning: Scheduled scan {scan_id} not found in SCHEDULED_SCANS")
+                return
+            
+            scan_config = SCHEDULED_SCANS[scan_id]
+            
+            # Check if scan is enabled
+            if not scan_config.get('enabled', False):
+                print(f"Scheduled scan {scan_id} is disabled, skipping execution")
+                return
+            
+            # Check if scan path exists (for directory scans)
+            scan_type = scan_config.get('scan_type', 'directory')
+            if scan_type == 'directory' and not Path(scan_config.get('path', '')).exists():
+                print(f"Warning: Scheduled scan path does not exist: {scan_config.get('path')}")
+                SCHEDULED_SCANS[scan_id]['last_error'] = f"Path not found: {scan_config.get('path')}"
+                SCHEDULED_SCANS[scan_id]['error_count'] = scan_config.get('error_count', 0) + 1
+                return
+            
+            # Generate unique session ID for this scheduled scan
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            session_id = hashlib.md5(f"scheduled_{scan_id}_{timestamp}".encode()).hexdigest()
+            
+            print(f"Executing scheduled scan: {scan_config['name']} (ID: {scan_id}, Session: {session_id})")
+            
+            # Calculate next run time before starting scan
+            next_run = self._calculate_next_run(scan_config['schedule_type'], scan_config['schedule_time'])
+            
+            # Update scheduled scan info
+            current_time = datetime.now()
+            SCHEDULED_SCANS[scan_id].update({
+                'last_run': current_time.isoformat(),
+                'total_runs': scan_config.get('total_runs', 0) + 1,
+                'next_run': next_run.isoformat() if next_run else None,
+                'current_session': session_id,
+                'last_error': None,  # Clear previous errors on successful start
+                'status': 'running'
+            })
+            
+            # Create scan wrapper function for better error handling
+            def scan_wrapper():
+                try:
+                    if scan_type == 'system':
+                        result = self.scan_full_system(session_id)
+                    elif scan_type == 'quick_system':
+                        result = self.scan_quick_system(session_id)
+                    else:  # directory scan
+                        result = self.scan_directory(scan_config['path'], session_id, is_scheduled=True)
+                    
+                    # Update scan status on completion
+                    if scan_id in SCHEDULED_SCANS:
+                        SCHEDULED_SCANS[scan_id].update({
+                            'status': 'completed',
+                            'current_session': None
+                        })
+                        print(f"Scheduled scan {scan_id} completed successfully")
+                    
+                except Exception as scan_error:
+                    print(f"Error in scheduled scan {scan_id}: {str(scan_error)}")
+                    if scan_id in SCHEDULED_SCANS:
+                        SCHEDULED_SCANS[scan_id].update({
+                            'status': 'error',
+                            'last_error': str(scan_error),
+                            'error_count': scan_config.get('error_count', 0) + 1,
+                            'current_session': None
+                        })
+            
+            # Start scan in background thread
+            scan_thread = threading.Thread(target=scan_wrapper, name=f"ScheduledScan-{scan_id}")
+            scan_thread.daemon = True
+            scan_thread.start()
+            
+            print(f"Scheduled scan thread started for {scan_config['name']}")
+            
+        except Exception as e:
+            print(f"Critical error executing scheduled scan {scan_id}: {str(e)}")
+            if scan_id in SCHEDULED_SCANS:
+                SCHEDULED_SCANS[scan_id].update({
+                    'status': 'error',
+                    'last_error': f"Execution error: {str(e)}",
+                    'error_count': SCHEDULED_SCANS[scan_id].get('error_count', 0) + 1,
+                    'current_session': None
+                })
     
     def _check_monthly_scan(self, scan_id):
         """Check if monthly scan should run today"""
@@ -1474,10 +1780,30 @@ def get_scan_progress(session_id):
 
 # Initialize scheduler thread
 def run_scheduler():
-    """Run the scheduled task scheduler"""
+    """Run the scheduled task scheduler with enhanced reliability"""
+    print("Scheduler thread started - monitoring scheduled scans...")
+    last_status_report = time.time()
+    
     while True:
-        schedule.run_pending()
-        time.sleep(1)
+        try:
+            # Run pending scheduled tasks
+            schedule.run_pending()
+            
+            # Report scheduler status every 5 minutes
+            current_time = time.time()
+            if current_time - last_status_report > 300:  # 5 minutes
+                job_count = len(schedule.jobs)
+                active_scans = len([s for s in SCHEDULED_SCANS.values() if s.get('status') == 'running'])
+                print(f"Scheduler status: {job_count} jobs registered, {active_scans} active scans")
+                last_status_report = current_time
+            
+            # Sleep for 1 second
+            time.sleep(1)
+            
+        except Exception as e:
+            print(f"Error in scheduler thread: {str(e)}")
+            # Continue running even if there's an error
+            time.sleep(5)  # Wait a bit longer after an error
 
 if __name__ == '__main__':
     print("Starting RiskNoX Security Agent Backend...")

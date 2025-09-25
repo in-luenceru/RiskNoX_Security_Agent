@@ -10,6 +10,7 @@ class SecurityAgent {
         this.currentSchedule = null;
         this.countdownTimer = null;
         this.scanMonitoringInterval = null;
+        this.lastScanUpdate = null;
         this.init();
     }
 
@@ -20,9 +21,9 @@ class SecurityAgent {
         this.loadPatchInfo();
         this.loadScheduledScans();  // Load for all users now
         
-        // Set up periodic updates
-        setInterval(() => this.loadSystemStatus(), 5000);  // Update every 5 seconds
-        setInterval(() => this.checkScanStatus(), 2000);   // Check scan status every 2 seconds
+        // Set up periodic updates with improved intervals
+        setInterval(() => this.loadSystemStatus(), 3000);  // Update every 3 seconds for more responsive UI
+        setInterval(() => this.checkScanStatus(), 1000);   // Check scan status every 1 second for real-time updates
         
         // Check admin authentication
         this.checkAdminAuth();
@@ -362,67 +363,197 @@ class SecurityAgent {
         if (!this.currentScanSession) return;
 
         try {
-            // Check detailed progress first
+            // Check detailed progress first for more responsive updates
             const progressResponse = await this.apiCall(`/antivirus/scan-progress/${this.currentScanSession}`);
             if (progressResponse.success) {
                 const progress = progressResponse.progress;
+                
+                // Update progress with enhanced information
                 this.updateProgress(
                     progress.progress_percent,
                     progress.files_scanned,
                     progress.total_files,
                     progress.threats_found,
-                    progress.status
+                    progress.status,
+                    progress.current_file,
+                    progress.scan_speed
                 );
                 
-                // Update scan log if available
+                // Update scan log continuously for real-time feedback
                 if (progress.scan_log && progress.scan_log.length > 0) {
                     this.updateScanLog(progress.scan_log);
+                }
+                
+                // Update last activity timestamp
+                if (progress.status === 'scanning') {
+                    this.lastScanUpdate = Date.now();
                 }
             }
             
             // Then check overall status
             const response = await this.apiCall(`/antivirus/status/${this.currentScanSession}`);
-            const session = response.session;
-            
-            document.getElementById('scanStatus').textContent = `Status: ${session.status}`;
-            document.getElementById('detailedStatus').textContent = session.status;
-            
-            if (session.status === 'completed' || session.status === 'timeout' || session.status.startsWith('error')) {
-                // Scan finished
-                document.getElementById('scanProgress').style.display = 'none';
-                document.getElementById('scanProgressDetails').style.display = 'none';
-                document.getElementById('startScanBtn').disabled = false;
-                document.getElementById('quickScanBtn').disabled = false;
+            if (response.success) {
+                const session = response.session;
                 
-                if (session.status === 'completed') {
-                    this.displayScanResults(session);
-                } else {
-                    this.showAlert(`Scan ${session.status}`, 'warning');
+                // Enhanced status display
+                const statusElement = document.getElementById('scanStatus');
+                const detailedStatusElement = document.getElementById('detailedStatus');
+                
+                if (statusElement) {
+                    statusElement.textContent = `Status: ${session.status}`;
                 }
                 
-                this.currentScanSession = null;
+                if (detailedStatusElement) {
+                    detailedStatusElement.textContent = session.status;
+                }
+                
+                // Check for completion or errors with better handling
+                if (session.status === 'completed' || 
+                    session.status === 'timeout' || 
+                    session.status === 'error' || 
+                    session.status.startsWith('error')) {
+                    
+                    // Scan finished - clean up and show results
+                    this.completeScan(session);
+                } else if (session.status === 'scanning' || session.status === 'initializing') {
+                    // Ensure progress display is visible during active scanning
+                    const progressDiv = document.getElementById('scanProgress');
+                    const progressDetailsDiv = document.getElementById('scanProgressDetails');
+                    
+                    if (progressDiv && progressDiv.style.display === 'none') {
+                        progressDiv.style.display = 'block';
+                    }
+                    
+                    if (progressDetailsDiv && progressDetailsDiv.style.display === 'none') {
+                        progressDetailsDiv.style.display = 'block';
+                    }
+                }
             }
             
         } catch (error) {
             console.error('Failed to check scan status:', error);
+            
+            // Handle connection errors gracefully
+            if (this.currentScanSession) {
+                // Check if we haven't received updates for too long
+                const timeSinceLastUpdate = Date.now() - (this.lastScanUpdate || Date.now());
+                if (timeSinceLastUpdate > 30000) { // 30 seconds without update
+                    console.warn('Scan appears to be stuck, will continue monitoring...');
+                    this.showAlert('Scan monitoring: Connection issues detected, but scan may still be running', 'warning');
+                }
+            }
         }
     }
-
-    updateProgress(percent, filesScanned, totalFiles, threatsFound, status) {
-        document.getElementById('progressBar').style.width = `${percent}%`;
-        document.getElementById('progressPercent').textContent = percent.toFixed(1);
-        document.getElementById('filesScanned').textContent = filesScanned;
-        document.getElementById('totalFiles').textContent = totalFiles;
-        document.getElementById('threatsFound').textContent = threatsFound;
-        document.getElementById('detailedStatus').textContent = status;
+    
+    completeScan(session) {
+        // Hide progress indicators
+        const progressDiv = document.getElementById('scanProgress');
+        const progressDetailsDiv = document.getElementById('scanProgressDetails');
         
-        // Update progress bar color based on threats
-        const progressBar = document.getElementById('progressBar');
-        progressBar.className = 'progress-bar';
-        if (threatsFound > 0) {
-            progressBar.classList.add('bg-danger');
+        if (progressDiv) progressDiv.style.display = 'none';
+        if (progressDetailsDiv) progressDetailsDiv.style.display = 'none';
+        
+        // Re-enable scan buttons
+        const startScanBtn = document.getElementById('startScanBtn');
+        const quickScanBtn = document.getElementById('quickScanBtn');
+        
+        if (startScanBtn) startScanBtn.disabled = false;
+        if (quickScanBtn) quickScanBtn.disabled = false;
+        
+        // Display results based on completion status
+        if (session.status === 'completed') {
+            this.displayScanResults(session);
+            this.showAlert(`Scan completed: ${session.threats_found || 0} threats found in ${session.files_scanned || 0} files`, 
+                          session.threats_found > 0 ? 'danger' : 'success');
+        } else if (session.status === 'timeout') {
+            this.showAlert('Scan timed out - partial results may be available', 'warning');
+            this.displayScanResults(session);
         } else {
-            progressBar.classList.add('bg-success');
+            this.showAlert(`Scan ${session.status}: ${session.error || 'Unknown error occurred'}`, 'danger');
+        }
+        
+        // Clear current scan session
+        this.currentScanSession = null;
+        this.lastScanUpdate = null;
+        
+        // Reset page title
+        document.title = 'RiskNoX Security Agent Dashboard';
+    }
+
+    updateProgress(percent, filesScanned, totalFiles, threatsFound, status, currentFile, scanSpeed) {
+        // Update basic progress elements
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        const filesScannedElement = document.getElementById('filesScanned');
+        const totalFilesElement = document.getElementById('totalFiles');
+        const threatsFoundElement = document.getElementById('threatsFound');
+        const detailedStatusElement = document.getElementById('detailedStatus');
+        const currentFileElement = document.getElementById('currentFile');
+        const scanSpeedElement = document.getElementById('scanSpeed');
+        
+        if (progressBar) {
+            progressBar.style.width = `${Math.min(100, percent || 0)}%`;
+            // Update progress bar color based on threats and progress
+            progressBar.className = 'progress-bar';
+            if (threatsFound > 0) {
+                progressBar.classList.add('bg-danger');
+            } else if (percent > 50) {
+                progressBar.classList.add('bg-success');
+            } else {
+                progressBar.classList.add('bg-info');
+            }
+        }
+        
+        if (progressPercent) {
+            progressPercent.textContent = (percent || 0).toFixed(1);
+        }
+        
+        if (filesScannedElement) {
+            filesScannedElement.textContent = filesScanned || 0;
+        }
+        
+        if (totalFilesElement) {
+            totalFilesElement.textContent = totalFiles || 0;
+        }
+        
+        if (threatsFoundElement) {
+            threatsFoundElement.textContent = threatsFound || 0;
+            // Highlight threats count if threats found
+            if (threatsFound > 0) {
+                threatsFoundElement.className = 'text-danger fw-bold';
+            } else {
+                threatsFoundElement.className = 'text-success';
+            }
+        }
+        
+        if (detailedStatusElement) {
+            detailedStatusElement.textContent = status || 'Unknown';
+            // Update status styling
+            detailedStatusElement.className = '';
+            if (status === 'completed') {
+                detailedStatusElement.className = 'text-success';
+            } else if (status === 'error' || status.startsWith('error')) {
+                detailedStatusElement.className = 'text-danger';
+            } else if (status === 'scanning') {
+                detailedStatusElement.className = 'text-info';
+            }
+        }
+        
+        // Update current file being scanned
+        if (currentFileElement && currentFile) {
+            const fileName = currentFile.split('\\').pop() || currentFile.split('/').pop() || currentFile;
+            currentFileElement.textContent = fileName;
+            currentFileElement.title = currentFile; // Full path in tooltip
+        }
+        
+        // Update scan speed
+        if (scanSpeedElement && scanSpeed) {
+            scanSpeedElement.textContent = `${scanSpeed.toFixed(1)} files/sec`;
+        }
+        
+        // Update page title with progress
+        if (percent > 0) {
+            document.title = `RiskNoX Security (${percent.toFixed(0)}% - ${threatsFound || 0} threats)`;
         }
     }
 

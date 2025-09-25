@@ -144,8 +144,15 @@ function Get-ProcessByPort {
     try {
         $netstat = netstat -ano | Select-String ":$Port "
         if ($netstat) {
-            $pid = ($netstat -split '\s+')[-1]
-            return Get-Process -Id $pid -ErrorAction SilentlyContinue
+            $processes = @()
+            foreach ($line in $netstat) {
+                $processId = ($line -split '\s+')[-1]
+                $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+                if ($process) {
+                    $processes += $process
+                }
+            }
+            return $processes
         }
     }
     catch {
@@ -155,14 +162,62 @@ function Get-ProcessByPort {
     return $null
 }
 
+function Get-AllBackendProcesses {
+    # Get all Python processes that might be running the backend
+    $allPythonProcesses = Get-Process -Name "python" -ErrorAction SilentlyContinue
+    $backendProcesses = @()
+    $processIds = @()
+    
+    # Check processes on the backend port
+    $portProcesses = Get-ProcessByPort $Script:Config.BackendPort
+    if ($portProcesses) {
+        foreach ($proc in $portProcesses) {
+            if ($proc.Id -notin $processIds -and $proc.Id -gt 0) {
+                $backendProcesses += $proc
+                $processIds += $proc.Id
+            }
+        }
+    }
+    
+    # Also check for Python processes running backend_server.py
+    if ($allPythonProcesses) {
+        foreach ($proc in $allPythonProcesses) {
+            try {
+                # Skip if already added or system process
+                if ($proc.Id -in $processIds -or $proc.Id -le 0) {
+                    continue
+                }
+                
+                $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId = $($proc.Id)").CommandLine
+                if ($commandLine -and $commandLine -like "*backend_server.py*") {
+                    $backendProcesses += $proc
+                    $processIds += $proc.Id
+                }
+            }
+            catch {
+                # Continue if we can't get command line
+            }
+        }
+    }
+    
+    return $backendProcesses
+}
+
 function Start-Backend {
+    param([switch]$ShowLogs)
+    
     Write-Log "Starting RiskNoX Security Agent Backend..." -Level INFO
     
     # Check if already running
-    $existingProcess = Get-ProcessByPort $Script:Config.BackendPort
-    if ($existingProcess) {
-        Write-Log "Backend is already running (PID: $($existingProcess.Id))" -Level WARN
-        return $existingProcess
+    $existingProcesses = Get-AllBackendProcesses
+    if ($existingProcesses -and $existingProcesses.Count -gt 0) {
+        $firstProcess = $existingProcesses[0]
+        Write-Log "Backend is already running ($($existingProcesses.Count) process(es), first PID: $($firstProcess.Id))" -Level WARN
+        if ($ShowLogs) {
+            Write-Log "Showing live logs... Press Ctrl+C to exit" -Level INFO
+            Show-LiveLogs -ProcessId $firstProcess.Id
+        }
+        return $firstProcess
     }
     
     # Set up paths
@@ -173,18 +228,47 @@ function Start-Backend {
     try {
         Push-Location $Script:Config.RootPath
         
-        $process = Start-Process -FilePath $venvPython -ArgumentList $backendScript -WindowStyle Hidden -PassThru
+        if ($ShowLogs) {
+            # Start with live logs visible
+            Write-Log "Starting backend with live logs... Press Ctrl+C to exit" -Level INFO
+            $process = Start-Process -FilePath $venvPython -ArgumentList $backendScript -NoNewWindow -PassThru
+        } else {
+            $process = Start-Process -FilePath $venvPython -ArgumentList $backendScript -WindowStyle Hidden -PassThru
+        }
         
-        # Wait a moment and check if it's running
-        Start-Sleep -Seconds 3
-        $runningProcess = Get-ProcessByPort $Script:Config.BackendPort
+        # Wait longer for Flask to fully initialize
+        Write-Log "Waiting for backend to initialize..." -Level INFO
+        Start-Sleep -Seconds 2
+        
+        # Check multiple times with increasing delays
+        $maxAttempts = 10
+        $attempt = 1
+        $runningProcess = $null
+        
+        while ($attempt -le $maxAttempts -and -not $runningProcess) {
+            Start-Sleep -Seconds 1
+            $runningProcesses = Get-AllBackendProcesses
+            if ($runningProcesses -and $runningProcesses.Count -gt 0) {
+                $runningProcess = $runningProcesses[0]
+            } else {
+                Write-Log "Attempt $attempt/$maxAttempts - Backend still initializing..." -Level INFO
+                $attempt++
+            }
+        }
         
         if ($runningProcess) {
             Write-Log "Backend started successfully (PID: $($runningProcess.Id))" -Level SUCCESS
             Write-Log "Web interface available at: http://localhost:$($Script:Config.BackendPort)" -Level SUCCESS
+            
+            if ($ShowLogs) {
+                Write-Log "Showing live logs... Press Ctrl+C to exit" -Level INFO
+                Show-LiveLogs -ProcessId $runningProcess.Id
+            }
+            
             return $runningProcess
         } else {
             Write-Log "Backend failed to start or is not listening on port $($Script:Config.BackendPort)" -Level ERROR
+            Write-Log "Please check the logs directory for error details" -Level INFO
             return $null
         }
     }
@@ -200,14 +284,31 @@ function Start-Backend {
 function Stop-Backend {
     Write-Log "Stopping RiskNoX Security Agent Backend..." -Level INFO
     
-    $process = Get-ProcessByPort $Script:Config.BackendPort
-    if ($process) {
-        try {
-            Stop-Process -Id $process.Id -Force
-            Write-Log "Backend stopped successfully" -Level SUCCESS
+    $processes = Get-AllBackendProcesses
+    if ($processes -and $processes.Count -gt 0) {
+        $stopped = 0
+        foreach ($process in $processes) {
+            try {
+                Write-Log "Stopping backend process (PID: $($process.Id))" -Level INFO
+                Stop-Process -Id $process.Id -Force
+                $stopped++
+            }
+            catch {
+                Write-Log "Failed to stop process $($process.Id): $($_.Exception.Message)" -Level ERROR
+            }
         }
-        catch {
-            Write-Log "Failed to stop backend: $($_.Exception.Message)" -Level ERROR
+        
+        if ($stopped -gt 0) {
+            Write-Log "Successfully stopped $stopped backend process(es)" -Level SUCCESS
+            
+            # Wait a moment and verify they're really stopped
+            Start-Sleep -Seconds 2
+            $remainingProcesses = Get-AllBackendProcesses
+            if ($remainingProcesses -and $remainingProcesses.Count -gt 0) {
+                Write-Log "Warning: $($remainingProcesses.Count) backend process(es) still running" -Level WARN
+            } else {
+                Write-Log "All backend processes stopped successfully" -Level SUCCESS
+            }
         }
     } else {
         Write-Log "Backend is not running" -Level WARN
@@ -218,9 +319,14 @@ function Get-ServiceStatus {
     Write-Log "Checking RiskNoX Security Agent Status..." -Level INFO
     
     # Backend status
-    $backendProcess = Get-ProcessByPort $Script:Config.BackendPort
-    if ($backendProcess) {
-        Write-Log "✓ Backend Service: Running (PID: $($backendProcess.Id))" -Level SUCCESS
+    $backendProcesses = Get-AllBackendProcesses
+    if ($backendProcesses -and $backendProcesses.Count -gt 0) {
+        if ($backendProcesses.Count -eq 1) {
+            Write-Log "✓ Backend Service: Running (PID: $($backendProcesses[0].Id))" -Level SUCCESS
+        } else {
+            $pidList = ($backendProcesses | ForEach-Object { $_.Id }) -join ", "
+            Write-Log "✓ Backend Service: Running ($($backendProcesses.Count) processes - PIDs: $pidList)" -Level SUCCESS
+        }
         Write-Log "  └─ Web Interface: http://localhost:$($Script:Config.BackendPort)" -Level INFO
     } else {
         Write-Log "✗ Backend Service: Stopped" -Level WARN
@@ -511,6 +617,54 @@ NOTES:
 "@ -ForegroundColor Cyan
 }
 
+function Show-LiveLogs {
+    param([int]$ProcessId)
+    
+    $controlLogFile = Join-Path $Script:Config.LogsPath "control.log"
+    
+    Write-Log "Monitoring backend logs... Press Ctrl+C to exit" -Level INFO
+    Write-Host "`n--- Live Logs ---" -ForegroundColor Yellow
+    
+    try {
+        # Monitor the control log file
+        if (Test-Path $controlLogFile) {
+            Get-Content $controlLogFile -Tail 10
+        }
+        
+        # Keep monitoring
+        while ($true) {
+            Start-Sleep -Seconds 1
+            
+            # Check if process is still running
+            if ($ProcessId -and -not (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) {
+                Write-Log "Backend process has stopped" -Level WARN
+                break
+            }
+            
+            # Show new log entries if the file exists
+            if (Test-Path $controlLogFile) {
+                $newContent = Get-Content $controlLogFile -Tail 5
+                if ($newContent) {
+                    $newContent | ForEach-Object {
+                        if ($_ -match '\[ERROR\]') {
+                            Write-Host $_ -ForegroundColor Red
+                        } elseif ($_ -match '\[WARN\]') {
+                            Write-Host $_ -ForegroundColor Yellow
+                        } elseif ($_ -match '\[SUCCESS\]') {
+                            Write-Host $_ -ForegroundColor Green
+                        } else {
+                            Write-Host $_
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        Write-Log "Log monitoring interrupted" -Level INFO
+    }
+}
+
 # Main execution
 function Main {
     Write-Log "RiskNoX Security Agent Control Script v1.0.0" -Level INFO
@@ -522,7 +676,7 @@ function Main {
     switch ($Action.ToLower()) {
         'start' {
             if (-not (Test-Dependencies)) { return }
-            Start-Backend
+            Start-Backend -ShowLogs
         }
         
         'stop' {
@@ -533,7 +687,7 @@ function Main {
             if (-not (Test-Dependencies)) { return }
             Stop-Backend
             Start-Sleep -Seconds 2
-            Start-Backend
+            Start-Backend -ShowLogs
         }
         
         'status' {
