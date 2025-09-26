@@ -205,6 +205,9 @@
                                     <button class="btn btn-success" id="quickScanBtn" onclick="startQuickScan()" style="display: none;">
                                         <i class="bi bi-lightning-fill"></i> Quick System Scan
                                     </button>
+                                    <button class="btn btn-danger" id="cancelScanBtn" onclick="cancelScan()" style="display: none;">
+                                        <i class="bi bi-stop-fill"></i> Cancel Scan
+                                    </button>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -345,42 +348,224 @@
 
             <!-- Patch Management Tab -->
             <div class="tab-pane fade" id="patch-management" role="tabpanel">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5><i class="bi bi-arrow-clockwise"></i> Patch Management</h5>
-                        <div class="admin-only">
-                            <button class="btn btn-success" onclick="installUpdates()">
-                                <i class="bi bi-download"></i> Install Updates
-                            </button>
+                <!-- Professional Patch Management Dashboard -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="bi bi-shield-check"></i> RiskNoX Professional Patch Management</h5>
+                                <div class="admin-only">
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-light btn-sm" onclick="checkForUpdates()" id="checkUpdatesBtn">
+                                            <i class="bi bi-arrow-clockwise"></i> Check Updates
+                                        </button>
+                                        <button class="btn btn-success btn-sm" onclick="installUpdates()" id="installUpdatesBtn">
+                                            <i class="bi bi-download"></i> Install Updates
+                                        </button>
+                                        <button class="btn btn-warning btn-sm" onclick="enforcePolicies()">
+                                            <i class="bi bi-shield-lock"></i> Enforce Policies
+                                        </button>
+                                        <button class="btn btn-info btn-sm" onclick="resetUpdateService()">
+                                            <i class="bi bi-arrow-repeat"></i> Reset Service
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- System Status Overview -->
+                                <div id="patchSystemStatus" class="mb-4">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="card bg-light">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-laptop display-4 text-primary"></i>
+                                                    <h6 class="mt-2">System Status</h6>
+                                                    <p class="text-muted mb-0" id="systemStatusText">Loading...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-light">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-download display-4 text-info"></i>
+                                                    <h6 class="mt-2">Pending Updates</h6>
+                                                    <p class="text-muted mb-0" id="pendingUpdatesCount">Loading...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-light">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-check-circle display-4 text-success"></i>
+                                                    <h6 class="mt-2">Policy Compliance</h6>
+                                                    <p class="text-muted mb-0" id="complianceStatus">Loading...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-light">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-clock display-4 text-warning"></i>
+                                                    <h6 class="mt-2">Last Update Check</h6>
+                                                    <p class="text-muted mb-0" id="lastUpdateCheck">Loading...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- System Information Panel -->
+                                <div id="patchInfo" class="mb-4">
+                                    <p class="text-muted">Loading comprehensive patch information...</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div id="patchInfo">
-                            <p class="text-muted">Loading patch information...</p>
-                        </div>
+                </div>
 
-                        <!-- Patch Tabs -->
-                        <ul class="nav nav-pills mt-3" id="patchTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="installed-patches-tab" data-bs-toggle="pill" 
-                                        data-bs-target="#installed-patches" type="button">
-                                    Installed Patches
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="pending-updates-tab" data-bs-toggle="pill" 
-                                        data-bs-target="#pending-updates" type="button">
-                                    Pending Updates
-                                </button>
-                            </li>
-                        </ul>
-
-                        <div class="tab-content mt-3" id="patchTabContent">
-                            <div class="tab-pane fade show active" id="installed-patches" role="tabpanel">
-                                <div id="installedPatchesList"></div>
+                <!-- Enhanced Patch Management Tabs -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <ul class="nav nav-pills card-header-pills" id="patchTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="pending-updates-tab" data-bs-toggle="pill" 
+                                                data-bs-target="#pending-updates" type="button">
+                                            <i class="bi bi-exclamation-triangle"></i> Pending Updates
+                                            <span class="badge bg-warning ms-2" id="pendingBadge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="installed-patches-tab" data-bs-toggle="pill" 
+                                                data-bs-target="#installed-patches" type="button">
+                                            <i class="bi bi-check-circle"></i> Recent Installations
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="update-history-tab" data-bs-toggle="pill" 
+                                                data-bs-target="#update-history" type="button">
+                                            <i class="bi bi-clock-history"></i> Update History
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link admin-only" id="policy-management-tab" data-bs-toggle="pill" 
+                                                data-bs-target="#policy-management" type="button">
+                                            <i class="bi bi-shield-lock"></i> Policy Management
+                                        </button>
+                                    </li>
+                                </ul>
                             </div>
-                            <div class="tab-pane fade" id="pending-updates" role="tabpanel">
-                                <div id="pendingUpdatesList"></div>
+                            <div class="card-body">
+                                <div class="tab-content" id="patchTabContent">
+                                    <!-- Pending Updates Tab -->
+                                    <div class="tab-pane fade show active" id="pending-updates" role="tabpanel">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6><i class="bi bi-exclamation-triangle text-warning"></i> Available Updates</h6>
+                                            <div class="admin-only">
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" onclick="checkForUpdates()">
+                                                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                                                    </button>
+                                                    <button class="btn btn-success" onclick="installUpdates()">
+                                                        <i class="bi bi-download"></i> Install All
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="pendingUpdatesList">
+                                            <div class="d-flex justify-content-center py-4">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Installed Patches Tab -->
+                                    <div class="tab-pane fade" id="installed-patches" role="tabpanel">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6><i class="bi bi-check-circle text-success"></i> Recently Installed Updates (Last 30 Days)</h6>
+                                        </div>
+                                        <div id="installedPatchesList">
+                                            <div class="d-flex justify-content-center py-4">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Update History Tab -->
+                                    <div class="tab-pane fade" id="update-history" role="tabpanel">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6><i class="bi bi-clock-history text-info"></i> Update Installation History</h6>
+                                        </div>
+                                        <div id="updateHistoryList">
+                                            <div class="d-flex justify-content-center py-4">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Policy Management Tab (Admin Only) -->
+                                    <div class="tab-pane fade admin-only" id="policy-management" role="tabpanel">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="card border-warning">
+                                                    <div class="card-header bg-warning text-dark">
+                                                        <h6 class="mb-0"><i class="bi bi-shield-exclamation"></i> Policy Enforcement</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="text-muted">Enforce Windows Update policies to prevent manual user updates and ensure centralized control.</p>
+                                                        <div class="d-grid gap-2">
+                                                            <button class="btn btn-warning" onclick="enforcePolicies()">
+                                                                <i class="bi bi-shield-lock"></i> Enforce Update Policies
+                                                            </button>
+                                                            <button class="btn btn-outline-info" onclick="checkCompliance()">
+                                                                <i class="bi bi-clipboard-check"></i> Check Compliance Status
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card border-info">
+                                                    <div class="card-header bg-info text-white">
+                                                        <h6 class="mb-0"><i class="bi bi-gear"></i> Service Management</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="text-muted">Reset Windows Update service and clear cache if experiencing update issues.</p>
+                                                        <div class="d-grid gap-2">
+                                                            <button class="btn btn-info" onclick="resetUpdateService()">
+                                                                <i class="bi bi-arrow-repeat"></i> Reset Update Service
+                                                            </button>
+                                                            <button class="btn btn-outline-secondary" onclick="clearUpdateCache()">
+                                                                <i class="bi bi-trash"></i> Clear Update Cache
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Compliance Status Display -->
+                                        <div class="mt-4">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0"><i class="bi bi-clipboard-data"></i> Policy Compliance Status</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div id="complianceDetails">
+                                                        <p class="text-muted">Click "Check Compliance Status" to view current policy compliance.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

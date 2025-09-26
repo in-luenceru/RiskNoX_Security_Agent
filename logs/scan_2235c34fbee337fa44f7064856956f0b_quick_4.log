@@ -1,0 +1,118 @@
+RiskNoX Antivirus Scan Report
+========================================
+Scan Path: C:\ProgramData
+Started: 2025-09-26 11:55:41.123478
+Completed: 2025-09-26 12:10:51.098053
+Duration: 910.0 seconds
+Files Scanned: 5872
+Threats Found: 4
+
+THREATS DETECTED:
+--------------------
+C:\ProgramData\Kaspersky Lab\AVP21.22\Data\antimalware_rollback_info_cache.db: Trojan.Generic.Malware
+C:\ProgramData\Kaspersky Lab\AVP21.22\Data\antimalware_rollback_info_cache.db-shm: Trojan.Generic.Malware
+C:\ProgramData\Kaspersky Lab\AVP21.22\Data\antimalware_rollback_info_cache.db-wal: Trojan.Generic.Malware
+C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\test.txt: Test.Virus.Signature
+
+Scan Log:
+----------
+[12:10:26] 📊 Progress: 100.0% (5728/2936)
+[12:10:26] 📊 Progress: 100.0% (5730/2936)
+[12:10:26] ✅ 5730 files checked - 4 threats found
+[12:10:27] 📊 Progress: 100.0% (5732/2936)
+[12:10:27] 📊 Progress: 100.0% (5734/2936)
+[12:10:27] 📊 Progress: 100.0% (5736/2936)
+[12:10:28] 📊 Progress: 100.0% (5738/2936)
+[12:10:28] 📊 Progress: 100.0% (5740/2936)
+[12:10:28] ✅ 5740 files checked - 4 threats found
+[12:10:28] 📊 Progress: 100.0% (5742/2936)
+[12:10:29] 📊 Progress: 100.0% (5744/2936)
+[12:10:29] 📊 Progress: 100.0% (5746/2936)
+[12:10:29] 📊 Progress: 100.0% (5748/2936)
+[12:10:30] 📊 Progress: 100.0% (5750/2936)
+[12:10:30] ✅ 5750 files checked - 4 threats found
+[12:10:30] 📊 Progress: 100.0% (5752/2936)
+[12:10:30] 📊 Progress: 100.0% (5754/2936)
+[12:10:31] 📊 Progress: 100.0% (5756/2936)
+[12:10:31] 📊 Progress: 100.0% (5758/2936)
+[12:10:31] 📊 Progress: 100.0% (5760/2936)
+[12:10:31] ✅ 5760 files checked - 4 threats found
+[12:10:32] 📊 Progress: 100.0% (5762/2936)
+[12:10:32] 📊 Progress: 100.0% (5764/2936)
+[12:10:33] 📊 Progress: 100.0% (5766/2936)
+[12:10:33] 📊 Progress: 100.0% (5768/2936)
+[12:10:33] 📊 Progress: 100.0% (5770/2936)
+[12:10:33] ✅ 5770 files checked - 4 threats found
+[12:10:34] 📊 Progress: 100.0% (5772/2936)
+[12:10:34] 📊 Progress: 100.0% (5774/2936)
+[12:10:34] 📊 Progress: 100.0% (5776/2936)
+[12:10:35] 📊 Progress: 100.0% (5778/2936)
+[12:10:35] 📊 Progress: 100.0% (5780/2936)
+[12:10:35] ✅ 5780 files checked - 4 threats found
+[12:10:35] 📊 Progress: 100.0% (5782/2936)
+[12:10:36] 📊 Progress: 100.0% (5784/2936)
+[12:10:36] 📊 Progress: 100.0% (5786/2936)
+[12:10:36] 📊 Progress: 100.0% (5788/2936)
+[12:10:37] 📊 Progress: 100.0% (5790/2936)
+[12:10:37] ✅ 5790 files checked - 4 threats found
+[12:10:37] 📊 Progress: 100.0% (5792/2936)
+[12:10:37] 📊 Progress: 100.0% (5794/2936)
+[12:10:38] 📊 Progress: 100.0% (5796/2936)
+[12:10:38] 📊 Progress: 100.0% (5798/2936)
+[12:10:39] 📊 Progress: 100.0% (5800/2936)
+[12:10:39] ✅ 5800 files checked - 4 threats found
+[12:10:39] 📊 Progress: 100.0% (5802/2936)
+[12:10:39] 📊 Progress: 100.0% (5804/2936)
+[12:10:40] 📊 Progress: 100.0% (5806/2936)
+[12:10:40] 📊 Progress: 100.0% (5808/2936)
+[12:10:40] 📊 Progress: 100.0% (5810/2936)
+[12:10:40] ✅ 5810 files checked - 4 threats found
+[12:10:41] 📊 Progress: 100.0% (5812/2936)
+[12:10:41] 📊 Progress: 100.0% (5814/2936)
+[12:10:41] 📊 Progress: 100.0% (5816/2936)
+[12:10:42] 📊 Progress: 100.0% (5818/2936)
+[12:10:42] 📊 Progress: 100.0% (5820/2936)
+[12:10:42] ✅ 5820 files checked - 4 threats found
+[12:10:42] 📊 Progress: 100.0% (5822/2936)
+[12:10:43] 📊 Progress: 100.0% (5824/2936)
+[12:10:43] 📊 Progress: 100.0% (5826/2936)
+[12:10:43] 📊 Progress: 100.0% (5828/2936)
+[12:10:44] 📊 Progress: 100.0% (5830/2936)
+[12:10:44] ✅ 5830 files checked - 4 threats found
+[12:10:44] 📊 Progress: 100.0% (5832/2936)
+[12:10:44] 📊 Progress: 100.0% (5834/2936)
+[12:10:45] 📊 Progress: 100.0% (5836/2936)
+[12:10:45] 📊 Progress: 100.0% (5838/2936)
+[12:10:45] 📊 Progress: 100.0% (5840/2936)
+[12:10:45] ✅ 5840 files checked - 4 threats found
+[12:10:46] 📊 Progress: 100.0% (5842/2936)
+[12:10:46] 📊 Progress: 100.0% (5844/2936)
+[12:10:46] 📊 Progress: 100.0% (5846/2936)
+[12:10:47] 📊 Progress: 100.0% (5848/2936)
+[12:10:47] 📊 Progress: 100.0% (5850/2936)
+[12:10:47] ✅ 5850 files checked - 4 threats found
+[12:10:47] 📊 Progress: 100.0% (5852/2936)
+[12:10:48] 📊 Progress: 100.0% (5854/2936)
+[12:10:48] 📊 Progress: 100.0% (5856/2936)
+[12:10:48] 📊 Progress: 100.0% (5858/2936)
+[12:10:49] 📊 Progress: 100.0% (5860/2936)
+[12:10:49] ✅ 5860 files checked - 4 threats found
+[12:10:49] 📊 Progress: 100.0% (5862/2936)
+[12:10:49] 📊 Progress: 100.0% (5864/2936)
+[12:10:50] 📊 Progress: 100.0% (5866/2936)
+[12:10:50] 📊 Progress: 100.0% (5868/2936)
+[12:10:50] 📊 Progress: 100.0% (5870/2936)
+[12:10:50] ✅ 5870 files checked - 4 threats found
+[12:10:51] 📊 Progress: 100.0% (5872/2936)
+[12:10:51] 🏁 Finalizing scan results...
+[12:10:51] 📊 SCAN SUMMARY:
+[12:10:51]    ✅ Files scanned: 5872
+[12:10:51]    🎯 Scan coverage: 100%
+[12:10:51]    🦠 Threats detected: 4
+[12:10:51] 🚨 SECURITY ALERT: 4 threats found!
+[12:10:51] ⚠️ ACTION REQUIRED: Review and quarantine threats
+[12:10:51]    1. Trojan.Generic.Malware in antimalware_rollback_info_cache.db
+[12:10:51]    2. Trojan.Generic.Malware in antimalware_rollback_info_cache.db-shm
+[12:10:51]    3. Trojan.Generic.Malware in antimalware_rollback_info_cache.db-wal
+[12:10:51]    4. Test.Virus.Signature in test.txt
+[12:10:51] ⏱️ Total scan time: 910.0 seconds

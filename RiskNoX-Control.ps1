@@ -7,7 +7,8 @@
     
 .DESCRIPTION
     Unified PowerShell 7 control script for managing RiskNoX Security Agent services.
-    Provides easy management of antivirus, web blocking, and patch management features.
+    Provides easy management of antivirus, web blocking, and professional patch management features.
+    Includes integrated patch management setup with WUA API integration and policy enforcement.
     
 .PARAMETER Action
     The action to perform: start, stop, restart, status, install, uninstall, scan, block, unblock, update
@@ -41,7 +42,8 @@
 
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('start', 'stop', 'restart', 'status', 'install', 'uninstall', 'scan', 'block', 'unblock', 'update', 'help')]
+    [ValidateSet('start', 'stop', 'restart', 'status', 'install', 'uninstall', 'scan', 'block', 'unblock', 'update', 
+                 'patch-check', 'patch-install', 'patch-enforce', 'patch-compliance', 'patch-reset', 'patch-setup', 'help')]
     [string]$Action,
     
     [Parameter(Mandatory = $false)]
@@ -52,7 +54,16 @@ param(
     
     [Parameter(Mandatory = $false)]
     [ValidateSet('backend', 'all')]
-    [string]$Service = 'all'
+    [string]$Service = 'all',
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$Force,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$FullSetup,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$TestMode
 )
 
 # Configuration
@@ -572,47 +583,107 @@ function Update-AntivirusDatabase {
 function Show-Help {
     Write-Host @"
 
-RiskNoX Security Agent Control Script
-====================================
+RiskNoX Security Agent Control Script - Professional Edition
+===========================================================
 
 USAGE:
     .\RiskNoX-Control.ps1 -Action <action> [options]
 
-ACTIONS:
+CORE ACTIONS:
     start               Start the security agent backend service
     stop                Stop the security agent backend service  
     restart             Restart the security agent backend service
     status              Show current status of all services
-    scan                Perform antivirus scan (requires -Path)
-    block               Block a website URL (requires -Url, admin privileges)
-    unblock             Unblock a website URL (requires -Url, admin privileges)  
-    update              Update antivirus database
     help                Show this help message
 
+ANTIVIRUS ACTIONS:
+    scan                Perform antivirus scan (requires -Path)
+    update              Update antivirus database
+
+WEB BLOCKING ACTIONS:
+    block               Block a website URL (requires -Url, admin privileges)
+    unblock             Unblock a website URL (requires -Url, admin privileges)
+
+PROFESSIONAL PATCH MANAGEMENT ACTIONS:
+    patch-setup         Setup professional patch management system (admin privileges)
+    patch-check         Check for available Windows updates
+    patch-install       Install all available Windows updates (admin privileges)
+    patch-enforce       Enforce Windows Update policies to block manual updates (admin privileges)
+    patch-compliance    Check compliance status of Windows Update policies
+    patch-reset         Reset Windows Update service and clear cache (admin privileges)
+
+OPTIONS:
+    -Force              Skip confirmation prompts for patch management operations
+    -FullSetup          Enable complete setup with policy enforcement
+    -TestMode           Run setup in test mode without making permanent changes
+    -Path <path>        Specify path for scan operations
+    -Url <url>          Specify URL for web blocking operations
+    -Service <service>  Specify service (backend, all)
+
 EXAMPLES:
+
+Basic Operations:
     .\RiskNoX-Control.ps1 -Action start
         Start the RiskNoX backend service
         
     .\RiskNoX-Control.ps1 -Action status
         Show current service status
         
+Antivirus Operations:
     .\RiskNoX-Control.ps1 -Action scan -Path "C:\Users\Username\Downloads"
         Scan Downloads folder for viruses
         
+    .\RiskNoX-Control.ps1 -Action update
+        Update antivirus virus definitions
+
+Web Blocking Operations:
     .\RiskNoX-Control.ps1 -Action block -Url "malicious-site.com"
         Block access to a malicious website
         
     .\RiskNoX-Control.ps1 -Action unblock -Url "safe-site.com"
         Unblock access to a previously blocked website
+
+Professional Patch Management Operations:
+    .\RiskNoX-Control.ps1 -Action patch-setup
+        Setup professional patch management system (basic setup)
         
-    .\RiskNoX-Control.ps1 -Action update
-        Update antivirus virus definitions
+    .\RiskNoX-Control.ps1 -Action patch-setup -FullSetup
+        Complete setup with policy enforcement enabled
+        
+    .\RiskNoX-Control.ps1 -Action patch-setup -TestMode
+        Test setup without making permanent changes
+        
+    .\RiskNoX-Control.ps1 -Action patch-check
+        Check for available Windows updates
+        
+    .\RiskNoX-Control.ps1 -Action patch-install -Force
+        Install all available updates without confirmation
+        
+    .\RiskNoX-Control.ps1 -Action patch-enforce
+        Block manual Windows updates and enforce centralized control
+        
+    .\RiskNoX-Control.ps1 -Action patch-compliance
+        Check Windows Update policy compliance status
+        
+    .\RiskNoX-Control.ps1 -Action patch-reset
+        Reset Windows Update service if experiencing issues
+
+PROFESSIONAL PATCH MANAGEMENT FEATURES:
+    ✓ Enterprise-grade Windows Update API integration
+    ✓ Centralized patch management and control
+    ✓ Automatic blocking of manual user updates
+    ✓ Policy compliance monitoring and enforcement
+    ✓ Detailed update tracking and reporting
+    ✓ Service troubleshooting and repair capabilities
+    ✓ Dashboard integration for remote management
 
 NOTES:
-    - Web interface will be available at: http://localhost:5000
-    - Some operations require administrator privileges
-    - Logs are stored in the 'logs' directory
+    - Web interface available at: http://localhost:5000
     - Admin credentials: username=admin, password=RiskNoX@2024
+    - First-time users: Run ".\RiskNoX-Control.ps1 -Action patch-setup" for initial setup
+    - Patch management requires administrator privileges
+    - Logs stored in the 'logs' directory
+    - Professional patch module located in 'scripts\PatchManagement.ps1'
 
 "@ -ForegroundColor Cyan
 }
@@ -621,19 +692,31 @@ function Show-LiveLogs {
     param([int]$ProcessId)
     
     $controlLogFile = Join-Path $Script:Config.LogsPath "control.log"
+    $lastLogPosition = 0
     
     Write-Log "Monitoring backend logs... Press Ctrl+C to exit" -Level INFO
-    Write-Host "`n--- Live Logs ---" -ForegroundColor Yellow
+    Write-Host "`n--- Live Logs (Real-time) ---" -ForegroundColor Yellow
     
     try {
-        # Monitor the control log file
+        # Get initial log position
         if (Test-Path $controlLogFile) {
-            Get-Content $controlLogFile -Tail 10
+            $initialContent = Get-Content $controlLogFile -Raw -ErrorAction SilentlyContinue
+            if ($initialContent) {
+                $lastLogPosition = $initialContent.Length
+                # Show last few lines initially
+                $lines = Get-Content $controlLogFile -Tail 5 -ErrorAction SilentlyContinue
+                if ($lines) {
+                    $lines | ForEach-Object {
+                        Write-Host $_ -ForegroundColor Gray
+                    }
+                }
+                Write-Host "--- End of existing logs, showing new entries only ---" -ForegroundColor Cyan
+            }
         }
         
-        # Keep monitoring
+        # Keep monitoring for new content only
         while ($true) {
-            Start-Sleep -Seconds 1
+            Start-Sleep -Seconds 2
             
             # Check if process is still running
             if ($ProcessId -and -not (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) {
@@ -641,28 +724,696 @@ function Show-LiveLogs {
                 break
             }
             
-            # Show new log entries if the file exists
+            # Check for new log content only
             if (Test-Path $controlLogFile) {
-                $newContent = Get-Content $controlLogFile -Tail 5
-                if ($newContent) {
-                    $newContent | ForEach-Object {
-                        if ($_ -match '\[ERROR\]') {
-                            Write-Host $_ -ForegroundColor Red
-                        } elseif ($_ -match '\[WARN\]') {
-                            Write-Host $_ -ForegroundColor Yellow
-                        } elseif ($_ -match '\[SUCCESS\]') {
-                            Write-Host $_ -ForegroundColor Green
-                        } else {
-                            Write-Host $_
+                try {
+                    $currentContent = Get-Content $controlLogFile -Raw -ErrorAction SilentlyContinue
+                    if ($currentContent -and $currentContent.Length -gt $lastLogPosition) {
+                        # Get only new content
+                        $newContent = $currentContent.Substring($lastLogPosition)
+                        $newLines = $newContent -split "`r?`n" | Where-Object { $_.Trim() -ne "" }
+                        
+                        if ($newLines) {
+                            $newLines | ForEach-Object {
+                                if ($_ -match '\[ERROR\]') {
+                                    Write-Host $_ -ForegroundColor Red
+                                } elseif ($_ -match '\[WARN\]') {
+                                    Write-Host $_ -ForegroundColor Yellow
+                                } elseif ($_ -match '\[SUCCESS\]') {
+                                    Write-Host $_ -ForegroundColor Green
+                                } elseif ($_ -match '\[INFO\]') {
+                                    Write-Host $_ -ForegroundColor White
+                                } else {
+                                    Write-Host $_ -ForegroundColor Gray
+                                }
+                            }
                         }
+                        
+                        $lastLogPosition = $currentContent.Length
                     }
+                } catch {
+                    # Skip errors when file is being written to
+                    continue
                 }
             }
         }
     }
-    catch {
-        Write-Log "Log monitoring interrupted" -Level INFO
+    catch [System.Management.Automation.PipelineStoppedException] {
+        Write-Log "Log monitoring stopped by user (Ctrl+C)" -Level INFO
     }
+    catch {
+        Write-Log "Log monitoring interrupted: $($_.Exception.Message)" -Level WARN
+    }
+
+# Professional Patch Management Setup Functions
+function Test-PatchManagementPrerequisites {
+    Write-Log "Checking patch management prerequisites..." -Level INFO
+    
+    $issues = @()
+    
+    # Check PowerShell version
+    $requiredVersion = [Version]"7.0.0"
+    if ($PSVersionTable.PSVersion -lt $requiredVersion) {
+        $issues += "PowerShell $requiredVersion or later is required. Current version: $($PSVersionTable.PSVersion)"
+    }
+    
+    # Check if running as Administrator
+    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        $issues += "This script must be run as Administrator for patch management setup"
+    }
+    
+    # Check Windows version
+    $osVersion = [System.Environment]::OSVersion.Version
+    if ($osVersion.Major -lt 10) {
+        $issues += "Windows 10 or later is required for professional patch management"
+    }
+    
+    # Check required services
+    $requiredServices = @("wuauserv", "cryptsvc", "bits", "msiserver")
+    foreach ($service in $requiredServices) {
+        try {
+            $svc = Get-Service -Name $service -ErrorAction Stop
+            if ($svc.StartType -eq 'Disabled') {
+                $issues += "Service '$service' is disabled. It should be enabled for proper patch management."
+            }
+        }
+        catch {
+            $issues += "Required service '$service' not found"
+        }
+    }
+    
+    # Check Windows Update Agent
+    try {
+        $wua = New-Object -ComObject Microsoft.Update.Session -ErrorAction Stop
+        if ($wua) {
+            Write-Log "Windows Update Agent COM interface available" -Level SUCCESS
+        }
+    }
+    catch {
+        $issues += "Windows Update Agent COM interface not available: $($_.Exception.Message)"
+    }
+    
+    if ($issues.Count -gt 0) {
+        Write-Log "Prerequisites check failed:" -Level ERROR
+        foreach ($issue in $issues) {
+            Write-Log "- $issue" -Level ERROR
+        }
+        return $false
+    }
+    
+    Write-Log "All patch management prerequisites met" -Level SUCCESS
+    return $true
+}
+
+function Initialize-PatchManagementDirectories {
+    Write-Log "Creating patch management directory structure..." -Level INFO
+    
+    $directories = @(
+        "logs",
+        "scripts", 
+        "config",
+        "web",
+        "vendor"
+    )
+    
+    foreach ($dir in $directories) {
+        $path = Join-Path $Script:Config.RootPath $dir
+        if (-not (Test-Path $path)) {
+            New-Item -ItemType Directory -Path $path -Force | Out-Null
+            Write-Log "Created directory: $dir" -Level SUCCESS
+        } else {
+            Write-Log "Directory exists: $dir" -Level INFO
+        }
+    }
+    return $true
+}
+
+function Test-PatchManagementModule {
+    Write-Log "Validating patch management module..." -Level INFO
+    
+    $modulePath = "scripts\PatchManagement.ps1"
+    
+    if (-not (Test-Path $modulePath)) {
+        Write-Log "Patch management module not found at: $modulePath" -Level ERROR
+        Write-Log "Please ensure the professional patch management module is installed" -Level ERROR
+        return $false
+    }
+    
+    try {
+        # Test loading the module
+        . $modulePath
+        
+        # Test creating a patch manager instance
+        $logPath = "logs\setup_test.log"
+        $patchManager = Initialize-PatchManager -LogPath $logPath
+        
+        if ($patchManager) {
+            Write-Log "Patch management module loaded successfully" -Level SUCCESS
+            return $true
+        } else {
+            Write-Log "Failed to initialize patch manager" -Level ERROR
+            return $false
+        }
+    }
+    catch {
+        Write-Log "Error loading patch management module: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+}
+
+function Test-WindowsUpdateConnectivity {
+    Write-Log "Testing Windows Update connectivity..." -Level INFO
+    
+    try {
+        # Test basic internet connectivity
+        $testUrls = @(
+            "https://www.microsoft.com",
+            "https://update.microsoft.com"
+        )
+        
+        $connectivityResults = @()
+        foreach ($url in $testUrls) {
+            try {
+                $response = Invoke-WebRequest -Uri $url -Method Head -TimeoutSec 10 -UseBasicParsing
+                if ($response.StatusCode -eq 200) {
+                    Write-Log "✓ $url - Accessible" -Level SUCCESS
+                    $connectivityResults += $true
+                }
+            }
+            catch {
+                Write-Log "✗ $url - $($_.Exception.Message)" -Level WARN
+                $connectivityResults += $false
+            }
+        }
+        
+        # Test Windows Update API
+        try {
+            . "scripts\PatchManagement.ps1"
+            $patchManager = Initialize-PatchManager -LogPath "logs\connectivity_test.log"
+            
+            Write-Log "Testing Windows Update API..." -Level INFO
+            $updateCheck = Get-AvailableUpdates -PatchManager $patchManager
+            
+            if ($updateCheck.Success) {
+                Write-Log "✓ Windows Update API - Functional (Found $($updateCheck.UpdateCount) updates)" -Level SUCCESS
+                return $true
+            } else {
+                Write-Log "✗ Windows Update API - Error: $($updateCheck.Error)" -Level WARN
+                return $false
+            }
+        }
+        catch {
+            Write-Log "✗ Windows Update API - Exception: $($_.Exception.Message)" -Level WARN
+            return $false
+        }
+    }
+    catch {
+        Write-Log "Connectivity test failed: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+}
+
+function Initialize-WindowsUpdateConfiguration {
+    Write-Log "Initializing Windows Update configuration..." -Level INFO
+    
+    if ($TestMode) {
+        Write-Log "Running in test mode - no permanent changes will be made" -Level WARN
+        return $true
+    }
+    
+    try {
+        # Ensure Windows Update service is properly configured
+        Write-Log "Configuring Windows Update service..." -Level INFO
+        
+        $wuService = Get-Service -Name "wuauserv"
+        if ($wuService.StartType -eq 'Disabled') {
+            if ($FullSetup -or $Force -or (Read-Host "Windows Update service is disabled. Enable it? (Y/n)") -ne 'n') {
+                Set-Service -Name "wuauserv" -StartupType Manual
+                Write-Log "Enabled Windows Update service" -Level SUCCESS
+            }
+        }
+        
+        # Start the service if it's not running
+        if ($wuService.Status -ne 'Running') {
+            Start-Service -Name "wuauserv"
+            Write-Log "Started Windows Update service" -Level SUCCESS
+        }
+        
+        # Configure related services
+        $relatedServices = @("cryptsvc", "bits")
+        foreach ($serviceName in $relatedServices) {
+            $service = Get-Service -Name $serviceName
+            if ($service.StartType -eq 'Disabled') {
+                Set-Service -Name $serviceName -StartupType Manual
+                Write-Log "Enabled $serviceName service" -Level SUCCESS
+            }
+            if ($service.Status -ne 'Running') {
+                Start-Service -Name $serviceName
+                Write-Log "Started $serviceName service" -Level SUCCESS
+            }
+        }
+        
+        # Create initial configuration
+        $configPath = "config\patch_config.json"
+        $config = @{
+            Version = "2.0.0"
+            SetupDate = (Get-Date -Format "yyyy-MM-ddTHH:mm:ss")
+            ProfessionalMode = $true
+            AutoUpdateCheck = $true
+            LogRetentionDays = 30
+            MaxConcurrentDownloads = 3
+            RebootPolicy = "Prompt"
+        }
+        
+        $config | ConvertTo-Json -Depth 10 | Out-File -FilePath $configPath -Encoding UTF8
+        Write-Log "Created patch management configuration" -Level SUCCESS
+        
+        return $true
+    }
+    catch {
+        Write-Log "Failed to initialize Windows Update configuration: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+}
+
+function Install-PatchManagementPolicies {
+    if (-not $FullSetup) {
+        Write-Log "Skipping policy installation (use -FullSetup to enable)" -Level INFO
+        return $true
+    }
+    
+    if ($TestMode) {
+        Write-Log "Test mode: Would install patch management policies" -Level WARN
+        return $true
+    }
+    
+    Write-Log "Installing patch management policies..." -Level INFO
+    
+    $confirmation = if ($Force) { 'y' } else { 
+        Read-Host "This will enforce Windows Update policies and block manual updates. Continue? (Y/n)"
+    }
+    
+    if ($confirmation -eq 'n') {
+        Write-Log "Policy installation skipped by user" -Level INFO
+        return $true
+    }
+    
+    try {
+        # Load the patch management module
+        . "scripts\PatchManagement.ps1"
+        $patchManager = Initialize-PatchManager -LogPath "logs\policy_setup.log"
+        
+        # Enforce policies
+        $policyResult = Set-UpdatePolicies -PatchManager $patchManager
+        
+        if ($policyResult.Success) {
+            Write-Log "Patch management policies installed successfully" -Level SUCCESS
+            Write-Log "Policy changes applied:" -Level INFO
+            foreach ($result in $policyResult.Results) {
+                Write-Log "- $result" -Level INFO
+            }
+            
+            # Verify compliance
+            $complianceResult = Test-UpdateCompliance -PatchManager $patchManager
+            if ($complianceResult.Success) {
+                Write-Log "Policy compliance: $($complianceResult.CompliancePercentage)%" -Level SUCCESS
+            }
+            
+            return $true
+        } else {
+            Write-Log "Failed to install policies: $($policyResult.Error)" -Level ERROR
+            return $false
+        }
+    }
+    catch {
+        Write-Log "Exception during policy installation: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+}
+
+function Test-PatchSetupValidation {
+    Write-Log "Validating patch management setup..." -Level INFO
+    
+    $validationResults = @{
+        ModuleLoads = $false
+        APIAccess = $false
+        ServiceStatus = $false
+        ConfigExists = $false
+        LoggingWorks = $false
+    }
+    
+    try {
+        # Test module loading
+        . "scripts\PatchManagement.ps1"
+        $patchManager = Initialize-PatchManager -LogPath "logs\validation_test.log"
+        $validationResults.ModuleLoads = ($null -ne $patchManager)
+        
+        # Test API access
+        if ($validationResults.ModuleLoads) {
+            $updateCheck = Get-AvailableUpdates -PatchManager $patchManager
+            $validationResults.APIAccess = $updateCheck.Success
+        }
+        
+        # Test service status
+        $wuService = Get-Service -Name "wuauserv"
+        $validationResults.ServiceStatus = ($wuService.Status -eq 'Running')
+        
+        # Test configuration
+        $configPath = "config\patch_config.json"
+        $validationResults.ConfigExists = (Test-Path $configPath)
+        
+        # Test logging
+        $testLogPath = "logs\validation_test.log"
+        $validationResults.LoggingWorks = (Test-Path $testLogPath)
+        
+        # Report results
+        Write-Log "Validation Results:" -Level INFO
+        foreach ($test in $validationResults.Keys) {
+            $status = if ($validationResults[$test]) { "✓ PASS" } else { "✗ FAIL" }
+            $level = if ($validationResults[$test]) { "SUCCESS" } else { "ERROR" }
+            Write-Log "- $test : $status" -Level $level
+        }
+        
+        $allPassed = ($validationResults.Values | Where-Object { $_ -eq $false }).Count -eq 0
+        
+        if ($allPassed) {
+            Write-Log "All validation tests passed!" -Level SUCCESS
+            return $true
+        } else {
+            Write-Log "Some validation tests failed. Check the issues above." -Level ERROR
+            return $false
+        }
+    }
+    catch {
+        Write-Log "Validation failed with exception: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+}
+
+function Invoke-PatchManagementSetup {
+    Write-Host @"
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║        RiskNoX Professional Patch Management Setup          ║
+║                        Version 2.0.0                        ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+"@ -ForegroundColor Cyan
+
+    Write-Log "Starting RiskNoX Professional Patch Management setup..." -Level INFO
+    $setupModeText = if ($FullSetup) { "Full Setup" } else { "Basic Setup" }
+    $testModeText = if ($TestMode) { " (Test Mode)" } else { "" }
+    Write-Log "Setup mode: $setupModeText$testModeText" -Level INFO
+    
+    $setupSteps = @(
+        @{ Name = "Prerequisites Check"; Function = { Test-PatchManagementPrerequisites } },
+        @{ Name = "Directory Initialization"; Function = { Initialize-PatchManagementDirectories } },
+        @{ Name = "Module Validation"; Function = { Test-PatchManagementModule } },
+        @{ Name = "Connectivity Test"; Function = { Test-WindowsUpdateConnectivity } },
+        @{ Name = "Windows Update Configuration"; Function = { Initialize-WindowsUpdateConfiguration } },
+        @{ Name = "Policy Installation"; Function = { Install-PatchManagementPolicies } },
+        @{ Name = "Setup Validation"; Function = { Test-PatchSetupValidation } }
+    )
+    
+    $success = $true
+    $stepNumber = 1
+    
+    foreach ($step in $setupSteps) {
+        Write-Log "[$stepNumber/$($setupSteps.Count)] $($step.Name)..." -Level INFO
+        
+        try {
+            $result = & $step.Function
+            if ($result) {
+                Write-Log "$($step.Name) completed successfully" -Level SUCCESS
+            } else {
+                Write-Log "$($step.Name) failed" -Level ERROR
+                $success = $false
+                if (-not $Force) {
+                    $continue = Read-Host "Continue with setup anyway? (y/N)"
+                    if ($continue -ne 'y') {
+                        Write-Log "Setup aborted by user" -Level ERROR
+                        return
+                    }
+                }
+            }
+        }
+        catch {
+            Write-Log "$($step.Name) failed with exception: $($_.Exception.Message)" -Level ERROR
+            $success = $false
+            if (-not $Force) {
+                $continue = Read-Host "Continue with setup anyway? (y/N)"
+                if ($continue -ne 'y') {
+                    Write-Log "Setup aborted by user" -Level ERROR
+                    return
+                }
+            }
+        }
+        
+        $stepNumber++
+        Start-Sleep -Milliseconds 500
+    }
+    
+    if ($success) {
+        Write-Log "Setup completed successfully!" -Level SUCCESS
+        Show-PatchSetupSummary
+    } else {
+        Write-Log "Setup completed with some issues. Check the logs for details." -Level WARN
+    }
+    
+    Write-Log "Setup finished at $(Get-Date)" -Level INFO
+}
+
+function Show-PatchSetupSummary {
+    Write-Host @"
+
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║        RiskNoX Professional Patch Management Setup          ║
+║                     Setup Complete!                         ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+SETUP SUMMARY:
+✓ Prerequisites validated
+✓ Directory structure created  
+✓ Patch management module installed
+✓ Windows Update services configured
+$(if ($FullSetup) { "✓ Update policies enforced" } else { "○ Update policies not installed (use -FullSetup)" })
+✓ Configuration files created
+✓ System validation passed
+
+NEXT STEPS:
+1. Start the RiskNoX service:
+   .\RiskNoX-Control.ps1 -Action start
+
+2. Access the web interface:
+   http://localhost:5000
+
+3. Test patch management:
+   .\RiskNoX-Control.ps1 -Action patch-check
+
+PROFESSIONAL FEATURES NOW AVAILABLE:
+• Enterprise-grade Windows Update API integration
+• Centralized patch management and control  
+• Policy enforcement and compliance monitoring
+• Real-time installation progress tracking
+• Comprehensive audit logging and reporting
+• Service troubleshooting and repair tools
+
+For complete documentation, see:
+PATCH_MANAGEMENT_DOCUMENTATION.md
+
+"@ -ForegroundColor Green
+}
+
+# Professional Patch Management Functions
+function Invoke-PatchCheck {
+    Write-Log "Checking for available Windows updates..." -Level INFO
+    
+    try {
+        # Load the professional patch management module
+        . "scripts\PatchManagement.ps1"
+        
+        # Initialize patch manager
+        $patchManager = Initialize-PatchManager -LogPath "logs\patch_management.log"
+        
+        # Check for updates
+        $updates = Get-AvailableUpdates -PatchManager $patchManager
+        
+        if ($updates.Success) {
+            Write-Log "Found $($updates.UpdateCount) available updates" -Level SUCCESS
+            
+            if ($updates.UpdateCount -gt 0) {
+                Write-Log "Available Updates:" -Level INFO
+                foreach ($update in $updates.Updates) {
+                    Write-Log "- $($update.Title)" -Level INFO
+                    Write-Log "  Size: $($update.MaxDownloadSize) MB, Severity: $($update.MsrcSeverity)" -Level INFO
+                }
+            } else {
+                Write-Log "System is up to date" -Level SUCCESS
+            }
+        } else {
+            Write-Log "Failed to check for updates: $($updates.Error)" -Level ERROR
+        }
+    }
+    catch {
+        Write-Log "Exception during update check: $($_.Exception.Message)" -Level ERROR
+    }
+}
+
+function Invoke-PatchInstall {
+    if (-not (Test-Administrator)) {
+        Write-Log "Administrator privileges required for patch installation" -Level ERROR
+        return
+    }
+    
+    Write-Log "Installing Windows updates..." -Level INFO
+    
+    if (-not $Force) {
+        $confirmation = Read-Host "This will install all available updates and may require a reboot. Continue? (y/N)"
+        if ($confirmation -ne 'y' -and $confirmation -ne 'Y') {
+            Write-Log "Installation cancelled by user" -Level WARN
+            return
+        }
+    }
+    
+    try {
+        # Load the professional patch management module
+        . "scripts\PatchManagement.ps1"
+        
+        # Initialize patch manager
+        $patchManager = Initialize-PatchManager -LogPath "logs\patch_management.log"
+        
+        # Install updates
+        $result = Install-Updates -PatchManager $patchManager
+        
+        if ($result.Success) {
+            Write-Log "Update installation completed successfully" -Level SUCCESS
+            Write-Log "Updates installed: $($result.UpdatesInstalled)" -Level INFO
+            Write-Log "Updates failed: $($result.UpdatesFailed)" -Level INFO
+            
+            if ($result.RebootRequired) {
+                Write-Log "SYSTEM RESTART REQUIRED to complete installation!" -Level WARN
+            }
+        } else {
+            Write-Log "Update installation failed: $($result.Error)" -Level ERROR
+        }
+    }
+    catch {
+        Write-Log "Exception during update installation: $($_.Exception.Message)" -Level ERROR
+    }
+}
+
+function Invoke-PatchPolicyEnforcement {
+    if (-not (Test-Administrator)) {
+        Write-Log "Administrator privileges required for policy enforcement" -Level ERROR
+        return
+    }
+    
+    Write-Log "Enforcing Windows Update policies..." -Level INFO
+    
+    if (-not $Force) {
+        $confirmation = Read-Host "This will block manual Windows updates and enforce centralized control. Continue? (y/N)"
+        if ($confirmation -ne 'y' -and $confirmation -ne 'Y') {
+            Write-Log "Policy enforcement cancelled by user" -Level WARN
+            return
+        }
+    }
+    
+    try {
+        # Load the professional patch management module
+        . "scripts\PatchManagement.ps1"
+        
+        # Initialize patch manager
+        $patchManager = Initialize-PatchManager -LogPath "logs\patch_management.log"
+        
+        # Enforce policies
+        $result = Set-UpdatePolicies -PatchManager $patchManager
+        
+        if ($result.Success) {
+            Write-Log "Windows Update policies enforced successfully" -Level SUCCESS
+            Write-Log "Policy changes applied:" -Level INFO
+            foreach ($change in $result.Results) {
+                Write-Log "- $change" -Level INFO
+            }
+        } else {
+            Write-Log "Policy enforcement failed: $($result.Error)" -Level ERROR
+        }
+    }
+    catch {
+        Write-Log "Exception during policy enforcement: $($_.Exception.Message)" -Level ERROR
+    }
+}
+
+function Test-PatchCompliance {
+    Write-Log "Checking Windows Update policy compliance..." -Level INFO
+    
+    try {
+        # Load the professional patch management module
+        . "scripts\PatchManagement.ps1"
+        
+        # Initialize patch manager
+        $patchManager = Initialize-PatchManager -LogPath "logs\patch_management.log"
+        
+        # Check compliance
+        $result = Test-UpdateCompliance -PatchManager $patchManager
+        
+        if ($result.Success) {
+            Write-Log "Compliance check completed" -Level SUCCESS
+            Write-Log "Overall compliance: $($result.OverallCompliance)" -Level INFO
+            Write-Log "Compliance percentage: $($result.CompliancePercentage)%" -Level INFO
+            
+            Write-Log "Policy compliance details:" -Level INFO
+            foreach ($policy in $result.ComplianceDetails) {
+                $status = if ($policy.IsCompliant) { "COMPLIANT" } else { "NON-COMPLIANT" }
+                $color = if ($policy.IsCompliant) { "SUCCESS" } else { "ERROR" }
+                Write-Log "- $($policy.PolicyName): $status (Expected: $($policy.ExpectedValue), Actual: $($policy.ActualValue))" -Level $color
+            }
+        } else {
+            Write-Log "Compliance check failed: $($result.Error)" -Level ERROR
+        }
+    }
+    catch {
+        Write-Log "Exception during compliance check: $($_.Exception.Message)" -Level ERROR
+    }
+}
+
+function Reset-PatchService {
+    if (-not (Test-Administrator)) {
+        Write-Log "Administrator privileges required for service reset" -Level ERROR
+        return
+    }
+    
+    Write-Log "Resetting Windows Update service..." -Level INFO
+    
+    try {
+        # Load the professional patch management module
+        . "scripts\PatchManagement.ps1"
+        
+        # Initialize patch manager
+        $patchManager = Initialize-PatchManager -LogPath "logs\patch_management.log"
+        
+        # Reset service and clear cache
+        $serviceResult = Reset-WindowsUpdateService -PatchManager $patchManager
+        $cacheResult = Clear-WindowsUpdateCache -PatchManager $patchManager
+        
+        if ($serviceResult.Success -and $cacheResult.Success) {
+            Write-Log "Windows Update service reset and cache cleared successfully" -Level SUCCESS
+        } elseif ($serviceResult.Success) {
+            Write-Log "Windows Update service reset successfully, but cache clearing had issues" -Level WARN
+        } elseif ($cacheResult.Success) {
+            Write-Log "Cache cleared successfully, but service reset had issues" -Level WARN
+        } else {
+            Write-Log "Failed to reset service and clear cache" -Level ERROR
+        }
+    }
+    catch {
+        Write-Log "Exception during service reset: $($_.Exception.Message)" -Level ERROR
+    }
+}
+
 }
 
 # Main execution
@@ -676,6 +1427,21 @@ function Main {
     switch ($Action.ToLower()) {
         'start' {
             if (-not (Test-Dependencies)) { return }
+            
+            # Check if patch management is set up
+            $patchModulePath = "scripts\PatchManagement.ps1"
+            $patchConfigPath = "config\patch_config.json"
+            
+            if ((Test-Path $patchModulePath) -and -not (Test-Path $patchConfigPath)) {
+                Write-Log "Professional patch management module detected but not configured" -Level WARN
+                $setupChoice = Read-Host "Would you like to set up patch management now? (Y/n)"
+                if ($setupChoice -ne 'n') {
+                    Write-Log "Running patch management setup..." -Level INFO
+                    Invoke-PatchManagementSetup
+                    Write-Log "Continuing with service startup..." -Level INFO
+                }
+            }
+            
             Start-Backend -ShowLogs
         }
         
@@ -723,6 +1489,30 @@ function Main {
         
         'update' {
             Update-AntivirusDatabase
+        }
+        
+        'patch-check' {
+            Invoke-PatchCheck
+        }
+        
+        'patch-install' {
+            Invoke-PatchInstall
+        }
+        
+        'patch-enforce' {
+            Invoke-PatchPolicyEnforcement
+        }
+        
+        'patch-compliance' {
+            Test-PatchCompliance
+        }
+        
+        'patch-reset' {
+            Reset-PatchService
+        }
+        
+        'patch-setup' {
+            Invoke-PatchManagementSetup
         }
         
         'help' {

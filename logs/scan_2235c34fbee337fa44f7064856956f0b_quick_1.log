@@ -1,0 +1,151 @@
+RiskNoX Antivirus Scan Report
+========================================
+Scan Path: C:\Users\ANANDHU\Documents
+Started: 2025-09-26 11:53:24.322108
+Completed: 2025-09-26 11:55:13.332817
+Duration: 109.0 seconds
+Files Scanned: 900
+Threats Found: 37
+
+THREATS DETECTED:
+--------------------
+C:\Users\ANANDHU\Documents\azure resourse\test.py: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-services\Labfiles\02-ai-services-security\rest-test.cmd: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-services\Labfiles\02-ai-services-security\rest-test.sh: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-services\Labfiles\03-monitor-ai-services\rest-test.cmd: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-services\Labfiles\03-monitor-ai-services\rest-test.sh: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-services\Labfiles\04-use-a-container\rest-test.cmd: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Instructions\media\test-apple.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\02-image-classification\test-images\IMG_TEST_1.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\02-image-classification\test-images\IMG_TEST_2.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\02-image-classification\test-images\IMG_TEST_3.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\test-detector.csproj: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\obj\test-detector.csproj.nuget.dgspec.json: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\obj\test-detector.csproj.nuget.g.props: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\obj\test-detector.csproj.nuget.g.targets: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\obj\Debug\netcoreapp7.0\test-detector.AssemblyInfo.cs: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\obj\Debug\netcoreapp7.0\test-detector.AssemblyInfoInputs.cache: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\obj\Debug\netcoreapp7.0\test-detector.assets.cache: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\obj\Debug\netcoreapp7.0\test-detector.csproj.AssemblyReference.cache: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\C-Sharp\test-detector\obj\Debug\netcoreapp7.0\test-detector.GeneratedMSBuildEditorConfig.editorconfig: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\03-object-detection\Python\test-detector\test-detector.py: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\04-face\Python\face-api\test.py: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\test-classifier.csproj: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\obj\test-classifier.csproj.nuget.dgspec.json: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\obj\test-classifier.csproj.nuget.g.props: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\obj\test-classifier.csproj.nuget.g.targets: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\obj\Debug\netcoreapp3.1\test-classifier.AssemblyInfo.cs: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\obj\Debug\netcoreapp3.1\test-classifier.AssemblyInfoInputs.cache: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\obj\Debug\netcoreapp3.1\test-classifier.assets.cache: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\obj\Debug\netcoreapp3.1\test-classifier.csproj.AssemblyReference.cache: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\obj\Debug\netcoreapp3.1\test-classifier.GeneratedMSBuildEditorConfig.editorconfig: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\test-images\IMG_TEST_1.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\test-images\IMG_TEST_2.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\C-Sharp\test-classifier\test-images\IMG_TEST_3.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\Python\test-classifier\test-classifier.py: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\Python\test-classifier\test-images\IMG_TEST_1.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\Python\test-classifier\test-images\IMG_TEST_2.jpg: Test.Virus.Signature
+C:\Users\ANANDHU\Documents\azure resourse\mslearn-ai-vision\Labfiles\07-custom-vision-image-classification\Python\test-classifier\test-images\IMG_TEST_3.jpg: Test.Virus.Signature
+
+Scan Log:
+----------
+[11:55:03] 📊 Progress: 100.0% (816/450)
+[11:55:03] 📊 Progress: 100.0% (818/450)
+[11:55:03] 📊 Progress: 100.0% (820/450)
+[11:55:03] ✅ 820 files checked - 37 threats found
+[11:55:04] 📊 Progress: 100.0% (822/450)
+[11:55:04] 📊 Progress: 100.0% (824/450)
+[11:55:04] 📊 Progress: 100.0% (826/450)
+[11:55:04] 📊 Progress: 100.0% (828/450)
+[11:55:05] 📊 Progress: 100.0% (830/450)
+[11:55:05] ✅ 830 files checked - 37 threats found
+[11:55:05] 📊 Progress: 100.0% (832/450)
+[11:55:05] 📊 Progress: 100.0% (834/450)
+[11:55:05] 📊 Progress: 100.0% (836/450)
+[11:55:05] 📊 Progress: 100.0% (838/450)
+[11:55:06] 📊 Progress: 100.0% (840/450)
+[11:55:06] ✅ 840 files checked - 37 threats found
+[11:55:06] 📊 Progress: 100.0% (842/450)
+[11:55:06] 📊 Progress: 100.0% (844/450)
+[11:55:06] 📊 Progress: 100.0% (846/450)
+[11:55:07] 📊 Progress: 100.0% (848/450)
+[11:55:07] 📊 Progress: 100.0% (850/450)
+[11:55:07] ✅ 850 files checked - 37 threats found
+[11:55:07] 📊 Progress: 100.0% (852/450)
+[11:55:07] 📊 Progress: 100.0% (854/450)
+[11:55:07] 🔍 Progress: 190% - Scanning: IMG_20200229_165020.jpg
+[11:55:08] 📊 Progress: 100.0% (856/450)
+[11:55:08] 🔍 Progress: 190% - Scanning: IMG_20200229_165021.jpg
+[11:55:08] 📊 Progress: 100.0% (858/450)
+[11:55:08] 🔍 Progress: 190% - Scanning: IMG_20200229_165026.jpg
+[11:55:08] 📊 Progress: 100.0% (860/450)
+[11:55:08] ✅ 860 files checked - 37 threats found
+[11:55:08] 📊 Progress: 100.0% (862/450)
+[11:55:09] 📊 Progress: 100.0% (864/450)
+[11:55:09] 📊 Progress: 100.0% (866/450)
+[11:55:09] 📊 Progress: 100.0% (868/450)
+[11:55:09] 📊 Progress: 100.0% (870/450)
+[11:55:09] ✅ 870 files checked - 37 threats found
+[11:55:09] 📊 Progress: 100.0% (872/450)
+[11:55:10] 📊 Progress: 100.0% (874/450)
+[11:55:10] 📊 Progress: 100.0% (876/450)
+[11:55:10] 📊 Progress: 100.0% (878/450)
+[11:55:10] 📊 Progress: 100.0% (880/450)
+[11:55:10] ✅ 880 files checked - 37 threats found
+[11:55:11] 📊 Progress: 100.0% (882/450)
+[11:55:11] 📊 Progress: 100.0% (884/450)
+[11:55:11] 📊 Progress: 100.0% (886/450)
+[11:55:11] 📊 Progress: 100.0% (888/450)
+[11:55:12] 📊 Progress: 100.0% (890/450)
+[11:55:12] ✅ 890 files checked - 37 threats found
+[11:55:12] 📊 Progress: 100.0% (892/450)
+[11:55:12] 📊 Progress: 100.0% (894/450)
+[11:55:12] 📊 Progress: 100.0% (896/450)
+[11:55:13] 📊 Progress: 100.0% (898/450)
+[11:55:13] 📊 Progress: 100.0% (900/450)
+[11:55:13] ✅ 900 files checked - 37 threats found
+[11:55:13] 🏁 Finalizing scan results...
+[11:55:13] 📊 SCAN SUMMARY:
+[11:55:13]    ✅ Files scanned: 900
+[11:55:13]    🎯 Scan coverage: 100%
+[11:55:13]    🦠 Threats detected: 37
+[11:55:13] 🚨 SECURITY ALERT: 37 threats found!
+[11:55:13] ⚠️ ACTION REQUIRED: Review and quarantine threats
+[11:55:13]    1. Test.Virus.Signature in test.py
+[11:55:13]    2. Test.Virus.Signature in rest-test.cmd
+[11:55:13]    3. Test.Virus.Signature in rest-test.sh
+[11:55:13]    4. Test.Virus.Signature in rest-test.cmd
+[11:55:13]    5. Test.Virus.Signature in rest-test.sh
+[11:55:13]    6. Test.Virus.Signature in rest-test.cmd
+[11:55:13]    7. Test.Virus.Signature in test-apple.jpg
+[11:55:13]    8. Test.Virus.Signature in IMG_TEST_1.jpg
+[11:55:13]    9. Test.Virus.Signature in IMG_TEST_2.jpg
+[11:55:13]    10. Test.Virus.Signature in IMG_TEST_3.jpg
+[11:55:13]    11. Test.Virus.Signature in test-detector.csproj
+[11:55:13]    12. Test.Virus.Signature in test-detector.csproj.nuget.dgspec.json
+[11:55:13]    13. Test.Virus.Signature in test-detector.csproj.nuget.g.props
+[11:55:13]    14. Test.Virus.Signature in test-detector.csproj.nuget.g.targets
+[11:55:13]    15. Test.Virus.Signature in test-detector.AssemblyInfo.cs
+[11:55:13]    16. Test.Virus.Signature in test-detector.AssemblyInfoInputs.cache
+[11:55:13]    17. Test.Virus.Signature in test-detector.assets.cache
+[11:55:13]    18. Test.Virus.Signature in test-detector.csproj.AssemblyReference.cache
+[11:55:13]    19. Test.Virus.Signature in test-detector.GeneratedMSBuildEditorConfig.editorconfig
+[11:55:13]    20. Test.Virus.Signature in test-detector.py
+[11:55:13]    21. Test.Virus.Signature in test.py
+[11:55:13]    22. Test.Virus.Signature in test-classifier.csproj
+[11:55:13]    23. Test.Virus.Signature in test-classifier.csproj.nuget.dgspec.json
+[11:55:13]    24. Test.Virus.Signature in test-classifier.csproj.nuget.g.props
+[11:55:13]    25. Test.Virus.Signature in test-classifier.csproj.nuget.g.targets
+[11:55:13]    26. Test.Virus.Signature in test-classifier.AssemblyInfo.cs
+[11:55:13]    27. Test.Virus.Signature in test-classifier.AssemblyInfoInputs.cache
+[11:55:13]    28. Test.Virus.Signature in test-classifier.assets.cache
+[11:55:13]    29. Test.Virus.Signature in test-classifier.csproj.AssemblyReference.cache
+[11:55:13]    30. Test.Virus.Signature in test-classifier.GeneratedMSBuildEditorConfig.editorconfig
+[11:55:13]    31. Test.Virus.Signature in IMG_TEST_1.jpg
+[11:55:13]    32. Test.Virus.Signature in IMG_TEST_2.jpg
+[11:55:13]    33. Test.Virus.Signature in IMG_TEST_3.jpg
+[11:55:13]    34. Test.Virus.Signature in test-classifier.py
+[11:55:13]    35. Test.Virus.Signature in IMG_TEST_1.jpg
+[11:55:13]    36. Test.Virus.Signature in IMG_TEST_2.jpg
+[11:55:13]    37. Test.Virus.Signature in IMG_TEST_3.jpg
+[11:55:13] ⏱️ Total scan time: 109.0 seconds

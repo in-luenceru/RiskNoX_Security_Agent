@@ -292,6 +292,7 @@ class SecurityAgent {
             const scanResults = document.getElementById('scanResults');
             const startScanBtn = document.getElementById('startScanBtn');
             const quickScanBtn = document.getElementById('quickScanBtn');
+            const cancelScanBtn = document.getElementById('cancelScanBtn');
             const scanStatus = document.getElementById('scanStatus');
             
             if (scanProgress) scanProgress.style.display = 'block';
@@ -299,12 +300,14 @@ class SecurityAgent {
             if (scanResults) scanResults.style.display = 'none';
             if (startScanBtn) startScanBtn.disabled = true;
             if (quickScanBtn) quickScanBtn.disabled = true;
+            if (cancelScanBtn) cancelScanBtn.style.display = 'inline-block';
             if (scanStatus) scanStatus.textContent = 'Scan started...';
             
             // Reset progress indicators and clear log
             this.updateProgress(0, 0, 0, 0, 'Initializing scan...');
             this.clearScanLog();
-            this.addScanLogMessage('🚀 Scan initiated from frontend', 'success');
+            this.addScanLogMessage('🚀 Scan request sent to backend successfully', 'success');
+            this.addScanLogMessage('⏳ Initializing antivirus engine...', 'info');
             
             if (scanType === 'system') {
                 this.addScanLogMessage('🖥️ Full system scan initiated - scanning all drives and system files', 'info');
@@ -337,6 +340,7 @@ class SecurityAgent {
             const scanResults = document.getElementById('scanResults');
             const startScanBtn = document.getElementById('startScanBtn');
             const quickScanBtn = document.getElementById('quickScanBtn');
+            const cancelScanBtn = document.getElementById('cancelScanBtn');
             const scanStatus = document.getElementById('scanStatus');
             
             if (scanProgress) scanProgress.style.display = 'block';
@@ -344,13 +348,15 @@ class SecurityAgent {
             if (scanResults) scanResults.style.display = 'none';
             if (startScanBtn) startScanBtn.disabled = true;
             if (quickScanBtn) quickScanBtn.disabled = true;
+            if (cancelScanBtn) cancelScanBtn.style.display = 'inline-block';
             if (scanStatus) scanStatus.textContent = 'Quick scan started...';
             
             // Reset progress indicators and clear log
             this.updateProgress(0, 0, 0, 0, 'Initializing quick scan...');
             this.clearScanLog();
-            this.addScanLogMessage('🚀 Quick system scan initiated', 'success');
-            this.addScanLogMessage('⚡ Scanning critical system areas and common threat locations', 'info');
+            this.addScanLogMessage('🚀 Quick system scan request sent successfully', 'success');
+            this.addScanLogMessage('⚡ Initializing rapid threat detection engine...', 'info');
+            this.addScanLogMessage('🎯 Preparing to scan critical system areas...', 'info');
             
             this.showAlert('Quick system scan started. Scanning critical areas - estimated 5-10 minutes.', 'success');
             
@@ -368,29 +374,66 @@ class SecurityAgent {
             if (progressResponse.success) {
                 const progress = progressResponse.progress;
                 
+                // Debug logging to understand what we're receiving
+                if (progress.status === 'scanning') {
+                    console.log('Scan progress:', {
+                        status: progress.status,
+                        percent: progress.progress_percent,
+                        files: progress.files_scanned,
+                        total: progress.total_files,
+                        current: progress.current_file,
+                        speed: progress.scan_speed,
+                        logCount: progress.scan_log ? progress.scan_log.length : 0
+                    });
+                }
+                
                 // Update progress with enhanced information
                 this.updateProgress(
-                    progress.progress_percent,
-                    progress.files_scanned,
-                    progress.total_files,
-                    progress.threats_found,
-                    progress.status,
-                    progress.current_file,
-                    progress.scan_speed
+                    progress.progress_percent || 0,
+                    progress.files_scanned || 0,
+                    progress.total_files || 0,
+                    progress.threats_found || 0,
+                    progress.status || 'unknown',
+                    progress.current_file || '',
+                    progress.scan_speed || 0
                 );
                 
                 // Update scan log continuously for real-time feedback
                 if (progress.scan_log && progress.scan_log.length > 0) {
                     this.updateScanLog(progress.scan_log);
+                } else if (progress.status === 'scanning') {
+                    // If no logs but scan is active, provide synthetic updates
+                    if (progress.current_file && (!this.lastDisplayedFile || this.lastDisplayedFile !== progress.current_file)) {
+                        const fileName = progress.current_file.split('\\').pop() || progress.current_file.split('/').pop() || progress.current_file;
+                        this.addScanLogMessage(`📄 Scanning: ${fileName}`, 'info');
+                        this.lastDisplayedFile = progress.current_file;
+                    } else if (progress.files_scanned > 0 && (!this.lastDisplayedCount || this.lastDisplayedCount < progress.files_scanned)) {
+                        // Show periodic progress updates if we have file counts but no logs
+                        if (progress.files_scanned % 50 === 0 || progress.files_scanned - (this.lastDisplayedCount || 0) >= 50) {
+                            this.addScanLogMessage(`� Progress: ${progress.files_scanned.toLocaleString()} files scanned (${progress.progress_percent || 0}%)`, 'info');
+                            this.lastDisplayedCount = progress.files_scanned;
+                        }
+                    } else if (!progress.files_scanned && progress.status === 'scanning') {
+                        // If scan is active but no progress yet, show activity
+                        if (!this.scanActivityShown) {
+                            this.addScanLogMessage('🔄 Scan engine active - analyzing directories...', 'info');
+                            this.scanActivityShown = true;
+                        }
+                    }
+                }
+                
+                // Update page title with progress
+                if (progress.status === 'scanning' && progress.progress_percent) {
+                    document.title = `RiskNoX (${progress.progress_percent}%) - Scanning`;
                 }
                 
                 // Update last activity timestamp
-                if (progress.status === 'scanning') {
+                if (progress.status === 'scanning' || progress.status === 'initializing') {
                     this.lastScanUpdate = Date.now();
                 }
             }
             
-            // Then check overall status
+            // Then check overall status for completion detection
             const response = await this.apiCall(`/antivirus/status/${this.currentScanSession}`);
             if (response.success) {
                 const session = response.session;
@@ -404,14 +447,17 @@ class SecurityAgent {
                 }
                 
                 if (detailedStatusElement) {
-                    detailedStatusElement.textContent = session.status;
+                    const statusText = session.scan_stage ? 
+                        `${session.status} (${session.scan_stage})` : session.status;
+                    detailedStatusElement.textContent = statusText;
                 }
                 
                 // Check for completion or errors with better handling
                 if (session.status === 'completed' || 
                     session.status === 'timeout' || 
                     session.status === 'error' || 
-                    session.status.startsWith('error')) {
+                    session.status.startsWith('error') ||
+                    session.status === 'cancelled') {
                     
                     // Scan finished - clean up and show results
                     this.completeScan(session);
@@ -437,39 +483,74 @@ class SecurityAgent {
             if (this.currentScanSession) {
                 // Check if we haven't received updates for too long
                 const timeSinceLastUpdate = Date.now() - (this.lastScanUpdate || Date.now());
-                if (timeSinceLastUpdate > 30000) { // 30 seconds without update
-                    console.warn('Scan appears to be stuck, will continue monitoring...');
-                    this.showAlert('Scan monitoring: Connection issues detected, but scan may still be running', 'warning');
+                if (timeSinceLastUpdate > 45000) { // 45 seconds without update
+                    console.warn('Scan appears to have connection issues, will continue monitoring...');
+                    this.addScanLogMessage('⚠️ Connection issues detected - scan may still be running in background', 'warning');
+                    
+                    // Reset update time to avoid spam
+                    this.lastScanUpdate = Date.now();
                 }
             }
         }
     }
     
     completeScan(session) {
-        // Hide progress indicators
-        const progressDiv = document.getElementById('scanProgress');
-        const progressDetailsDiv = document.getElementById('scanProgressDetails');
+        console.log('Scan completed:', session);
         
-        if (progressDiv) progressDiv.style.display = 'none';
-        if (progressDetailsDiv) progressDetailsDiv.style.display = 'none';
+        // Add final log entries for completion
+        if (session.status === 'completed') {
+            this.addScanLogMessage(`🎉 Scan completed successfully!`, 'success');
+            this.addScanLogMessage(`📊 Final results: ${session.files_scanned || 0} files, ${session.threats_found || 0} threats`, 'info');
+        } else if (session.status === 'cancelled') {
+            this.addScanLogMessage(`⏹️ Scan was cancelled by user`, 'warning');
+        } else if (session.status === 'error') {
+            this.addScanLogMessage(`❌ Scan error: ${session.error || 'Unknown error'}`, 'danger');
+        }
         
-        // Re-enable scan buttons
+        // Update final progress to 100% if completed successfully
+        if (session.status === 'completed') {
+            this.updateProgress(100, session.files_scanned, session.files_scanned, session.threats_found, 'completed');
+        }
+        
+        // Keep progress visible for a moment to show completion
+        setTimeout(() => {
+            // Hide progress indicators
+            const progressDiv = document.getElementById('scanProgress');
+            const progressDetailsDiv = document.getElementById('scanProgressDetails');
+            
+            if (progressDiv) progressDiv.style.display = 'none';
+            if (progressDetailsDiv) progressDetailsDiv.style.display = 'none';
+            
+            // Display results based on completion status
+            if (session.status === 'completed') {
+                this.displayScanResults(session);
+            } else if (session.status === 'timeout') {
+                this.displayScanResults(session);
+            }
+        }, 2000); // Show final progress for 2 seconds
+        
+        // Re-enable scan buttons immediately
         const startScanBtn = document.getElementById('startScanBtn');
         const quickScanBtn = document.getElementById('quickScanBtn');
+        const cancelScanBtn = document.getElementById('cancelScanBtn');
         
         if (startScanBtn) startScanBtn.disabled = false;
         if (quickScanBtn) quickScanBtn.disabled = false;
+        if (cancelScanBtn) cancelScanBtn.style.display = 'none';
         
-        // Display results based on completion status
+        // Show appropriate completion message
         if (session.status === 'completed') {
-            this.displayScanResults(session);
-            this.showAlert(`Scan completed: ${session.threats_found || 0} threats found in ${session.files_scanned || 0} files`, 
-                          session.threats_found > 0 ? 'danger' : 'success');
+            const duration = session.scan_duration ? `${session.scan_duration.toFixed(1)} seconds` : 'unknown time';
+            const message = session.threats_found > 0 ? 
+                `⚠️ Scan completed in ${duration}: ${session.threats_found} threat(s) found in ${session.files_scanned || 0} files!` :
+                `✅ Scan completed in ${duration}: No threats found in ${session.files_scanned || 0} files`;
+            this.showAlert(message, session.threats_found > 0 ? 'danger' : 'success');
         } else if (session.status === 'timeout') {
-            this.showAlert('Scan timed out - partial results may be available', 'warning');
-            this.displayScanResults(session);
+            this.showAlert('⚠️ Scan timed out - partial results may be available', 'warning');
+        } else if (session.status === 'cancelled') {
+            this.showAlert('ℹ️ Scan was cancelled by user', 'info');
         } else {
-            this.showAlert(`Scan ${session.status}: ${session.error || 'Unknown error occurred'}`, 'danger');
+            this.showAlert(`❌ Scan ${session.status}: ${session.error || 'Unknown error occurred'}`, 'danger');
         }
         
         // Clear current scan session
@@ -492,12 +573,17 @@ class SecurityAgent {
         const scanSpeedElement = document.getElementById('scanSpeed');
         
         if (progressBar) {
-            progressBar.style.width = `${Math.min(100, percent || 0)}%`;
+            const safePercent = Math.min(100, Math.max(0, percent || 0));
+            progressBar.style.width = `${safePercent}%`;
+            progressBar.textContent = `${safePercent}%`;
+            
             // Update progress bar color based on threats and progress
             progressBar.className = 'progress-bar';
             if (threatsFound > 0) {
                 progressBar.classList.add('bg-danger');
-            } else if (percent > 50) {
+            } else if (safePercent > 75) {
+                progressBar.classList.add('bg-success');
+            } else if (safePercent > 50) {
                 progressBar.classList.add('bg-success');
             } else {
                 progressBar.classList.add('bg-info');
@@ -540,15 +626,27 @@ class SecurityAgent {
         }
         
         // Update current file being scanned
-        if (currentFileElement && currentFile) {
-            const fileName = currentFile.split('\\').pop() || currentFile.split('/').pop() || currentFile;
-            currentFileElement.textContent = fileName;
-            currentFileElement.title = currentFile; // Full path in tooltip
+        if (currentFileElement) {
+            if (currentFile && currentFile.trim() !== '') {
+                const fileName = currentFile.split('\\').pop() || currentFile.split('/').pop() || currentFile;
+                currentFileElement.textContent = fileName || 'Preparing scan...';
+                currentFileElement.title = currentFile; // Full path in tooltip
+                currentFileElement.style.color = '#0d6efd'; // Blue color to indicate active scanning
+            } else {
+                currentFileElement.textContent = 'Initializing scan...';
+                currentFileElement.style.color = '#6c757d'; // Gray color for waiting state
+            }
         }
         
         // Update scan speed
-        if (scanSpeedElement && scanSpeed) {
-            scanSpeedElement.textContent = `${scanSpeed.toFixed(1)} files/sec`;
+        if (scanSpeedElement) {
+            if (scanSpeed && scanSpeed > 0) {
+                scanSpeedElement.textContent = `${scanSpeed.toFixed(1)} files/sec`;
+                scanSpeedElement.style.color = '#198754'; // Green color for active speed
+            } else {
+                scanSpeedElement.textContent = 'Calculating...';
+                scanSpeedElement.style.color = '#6c757d'; // Gray color for calculating
+            }
         }
         
         // Update page title with progress
@@ -618,26 +716,36 @@ class SecurityAgent {
 
     updateScanLog(logEntries) {
         const logOutput = document.getElementById('scanLogOutput');
-        if (logOutput && logEntries.length > 0) {
-            // Clear existing content first time
-            if (logOutput.innerHTML.includes('Waiting for scan to start')) {
-                logOutput.innerHTML = '';
-            }
-            
-            // Add only new entries (compare with existing)
-            const existingEntries = logOutput.children.length;
-            const newEntries = logEntries.slice(existingEntries);
-            
-            newEntries.forEach(entry => {
+        if (!logOutput || !logEntries || logEntries.length === 0) return;
+        
+        // Clear existing content first time or if starting fresh
+        if (logOutput.innerHTML.includes('Waiting for scan to start') || 
+            logOutput.innerHTML.includes('Scan log cleared')) {
+            logOutput.innerHTML = '';
+        }
+        
+        // Keep track of what entries we've already displayed
+        const existingEntries = Array.from(logOutput.children).map(child => child.textContent);
+        
+        // Add only genuinely new entries
+        logEntries.forEach(entry => {
+            if (!existingEntries.includes(entry)) {
                 const logDiv = document.createElement('div');
                 logDiv.className = this.getLogEntryColor(entry);
                 logDiv.textContent = entry;
+                logDiv.style.marginBottom = '2px';
+                logDiv.style.fontSize = '11px';
                 logOutput.appendChild(logDiv);
-            });
-            
-            // Auto-scroll to bottom
-            logOutput.scrollTop = logOutput.scrollHeight;
+            }
+        });
+        
+        // Limit log entries to prevent memory issues (keep last 200 entries)
+        while (logOutput.children.length > 200) {
+            logOutput.removeChild(logOutput.firstChild);
         }
+        
+        // Auto-scroll to bottom smoothly
+        logOutput.scrollTop = logOutput.scrollHeight;
     }
 
     getLogEntryColor(entry) {
@@ -726,53 +834,161 @@ class SecurityAgent {
         }
     }
 
-    // Patch Management Functions
+    // Enhanced Professional Patch Management Functions
     async loadPatchInfo() {
         try {
             const response = await this.apiCall('/patch-management/info');
-            const data = response.data;
             
-            if (data.error) {
-                document.getElementById('patchInfo').innerHTML = 
-                    `<div class="alert alert-warning">Error loading patch information: ${data.error}</div>`;
+            if (!response.success) {
+                this.showPatchError('Failed to load patch information', response.error);
                 return;
             }
             
-            // Update patch info summary
-            const systemInfo = data.system_info || {};
-            document.getElementById('patchInfo').innerHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="alert alert-info">
-                            <strong>System Information:</strong><br>
-                            OS: ${systemInfo.os_name || 'Unknown'}<br>
-                            Version: ${systemInfo.os_version || 'Unknown'}<br>
-                            Last Boot: ${systemInfo.last_boot_time ? new Date(systemInfo.last_boot_time).toLocaleString() : 'Unknown'}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="alert alert-success">
-                            <strong>Patch Status:</strong><br>
-                            Installed Patches: ${data.installed_patches ? data.installed_patches.length : 0}<br>
-                            Pending Updates: ${data.pending_count || 0}<br>
-                            Last Check: ${new Date(data.last_check).toLocaleString()}
+            const data = response;
+            
+            // Update system status overview
+            this.updatePatchSystemStatus(data);
+            
+            // Update main patch info panel
+            this.updatePatchInfoPanel(data);
+            
+            // Update individual tabs
+            this.displayInstalledPatches(data.installed_patches || []);
+            this.displayPendingUpdates(data.pending_updates || []);
+            this.displayUpdateHistory(data.update_history || []);
+            
+            // Update badge counts
+            this.updatePatchBadges(data);
+            
+        } catch (error) {
+            this.showPatchError('Failed to load patch information', error.message);
+            console.error('Failed to load patch info:', error);
+        }
+    }
+
+    updatePatchSystemStatus(data) {
+        const systemInfo = data.system_info || {};
+        const updateStatus = data.update_status || {};
+        
+        // System Status
+        const systemStatusEl = document.getElementById('systemStatusText');
+        if (systemStatusEl) {
+            const bootTime = systemInfo.LastBootTime ? new Date(systemInfo.LastBootTime) : null;
+            const uptimeDays = bootTime ? Math.floor((new Date() - bootTime) / (1000 * 60 * 60 * 24)) : 0;
+            systemStatusEl.innerHTML = `
+                <strong>${systemInfo.OSName || 'Windows'}</strong><br>
+                <small>Uptime: ${uptimeDays} days</small>
+            `;
+        }
+        
+        // Pending Updates Count
+        const pendingCountEl = document.getElementById('pendingUpdatesCount');
+        if (pendingCountEl) {
+            const pendingCount = data.pending_count || 0;
+            pendingCountEl.innerHTML = `
+                <strong class="${pendingCount > 0 ? 'text-warning' : 'text-success'}">${pendingCount}</strong><br>
+                <small>${pendingCount > 0 ? 'Updates Available' : 'System Up to Date'}</small>
+            `;
+        }
+        
+        // Compliance Status (will be updated when compliance is checked)
+        const complianceEl = document.getElementById('complianceStatus');
+        if (complianceEl) {
+            complianceEl.innerHTML = `
+                <strong class="text-info">Unknown</strong><br>
+                <small>Check Compliance</small>
+            `;
+        }
+        
+        // Last Update Check
+        const lastCheckEl = document.getElementById('lastUpdateCheck');
+        if (lastCheckEl) {
+            const lastCheck = data.last_check ? new Date(data.last_check) : null;
+            lastCheckEl.innerHTML = `
+                <strong>${lastCheck ? lastCheck.toLocaleDateString() : 'Unknown'}</strong><br>
+                <small>${lastCheck ? lastCheck.toLocaleTimeString() : 'Never'}</small>
+            `;
+        }
+    }
+
+    updatePatchInfoPanel(data) {
+        const systemInfo = data.system_info || {};
+        const updateStatus = data.update_status || {};
+        
+        document.getElementById('patchInfo').innerHTML = `
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card border-info">
+                        <div class="card-body">
+                            <h6 class="card-title text-info">
+                                <i class="bi bi-laptop"></i> System Information
+                            </h6>
+                            <ul class="list-unstyled mb-0">
+                                <li><strong>OS:</strong> ${systemInfo.OSName || 'Unknown'}</li>
+                                <li><strong>Version:</strong> ${systemInfo.OSVersion || 'Unknown'}</li>
+                                <li><strong>Build:</strong> ${systemInfo.OSBuild || 'Unknown'}</li>
+                                <li><strong>Computer:</strong> ${systemInfo.ComputerName || 'Unknown'}</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
-                ${data.error_message ? `<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> ${data.error_message}</div>` : ''}
-            `;
-            
-            // Load installed patches
-            this.displayInstalledPatches(data.installed_patches || []);
-            
-            // Load pending updates
-            this.displayPendingUpdates(data.pending_updates || []);
-            
-        } catch (error) {
-            document.getElementById('patchInfo').innerHTML = 
-                '<div class="alert alert-danger">Failed to load patch information</div>';
-            console.error('Failed to load patch info:', error);
+                <div class="col-md-4">
+                    <div class="card border-success">
+                        <div class="card-body">
+                            <h6 class="card-title text-success">
+                                <i class="bi bi-shield-check"></i> Update Status
+                            </h6>
+                            <ul class="list-unstyled mb-0">
+                                <li><strong>Service:</strong> ${updateStatus.UpdateServiceRunning ? 
+                                    '<span class="text-success">Running</span>' : 
+                                    '<span class="text-danger">Stopped</span>'}</li>
+                                <li><strong>Reboot Required:</strong> ${updateStatus.RebootRequired ? 
+                                    '<span class="text-warning">Yes</span>' : 
+                                    '<span class="text-success">No</span>'}</li>
+                                <li><strong>Recent Updates:</strong> ${updateStatus.RecentUpdatesCount || 0}</li>
+                                <li><strong>Pending Updates:</strong> ${updateStatus.PendingUpdatesCount || 0}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-warning">
+                        <div class="card-body">
+                            <h6 class="card-title text-warning">
+                                <i class="bi bi-exclamation-triangle"></i> Alerts & Status
+                            </h6>
+                            ${updateStatus.RebootRequired ? 
+                                '<div class="alert alert-warning py-2 mb-2">System restart required</div>' : ''}
+                            ${(data.pending_count || 0) > 0 ? 
+                                `<div class="alert alert-info py-2 mb-2">${data.pending_count} updates available</div>` : 
+                                '<div class="alert alert-success py-2 mb-2">System up to date</div>'}
+                            <small class="text-muted">Last checked: ${data.last_check ? 
+                                new Date(data.last_check).toLocaleString() : 'Unknown'}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ${data.error_message ? 
+                `<div class="alert alert-warning mt-3"><i class="bi bi-exclamation-triangle"></i> ${data.error_message}</div>` : ''}
+        `;
+    }
+
+    updatePatchBadges(data) {
+        const pendingBadge = document.getElementById('pendingBadge');
+        if (pendingBadge) {
+            const count = data.pending_count || 0;
+            pendingBadge.textContent = count;
+            pendingBadge.className = count > 0 ? 'badge bg-warning ms-2' : 'badge bg-success ms-2';
         }
+    }
+
+    showPatchError(title, message) {
+        document.getElementById('patchInfo').innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="bi bi-exclamation-triangle"></i> ${title}</h6>
+                <p class="mb-0">${message}</p>
+            </div>
+        `;
     }
 
     displayInstalledPatches(patches) {
@@ -871,6 +1087,53 @@ class SecurityAgent {
         `).join('');
     }
 
+    displayUpdateHistory(history) {
+        const listDiv = document.getElementById('updateHistoryList');
+        
+        if (!listDiv) return;
+        
+        if (history.length === 0) {
+            listDiv.innerHTML = '<p class="text-muted">No update history available.</p>';
+            return;
+        }
+        
+        listDiv.innerHTML = history.map((entry, index) => `
+            <div class="patch-item p-3 mb-2 rounded border">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div style="flex: 1;">
+                        <div class="d-flex justify-content-between">
+                            <strong class="text-info">${entry.Title}</strong>
+                            <small class="text-muted">#${index + 1}</small>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> Date: ${new Date(entry.Date).toLocaleString()}
+                                </small>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">
+                                    <i class="bi bi-gear"></i> Operation: ${entry.Operation}
+                                </small>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> Result: ${entry.ResultCode}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ms-3">
+                        <span class="badge ${entry.ResultCode === 'Succeeded' ? 'bg-success' : 
+                                         entry.ResultCode === 'Failed' ? 'bg-danger' : 'bg-warning'}">
+                            ${entry.ResultCode}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
     async installUpdates() {
         if (!this.authToken) {
             this.showAlert('Admin authentication required', 'warning');
@@ -881,31 +1144,250 @@ class SecurityAgent {
             return;
         }
 
+        const installBtn = document.getElementById('installUpdatesBtn');
+        const originalText = installBtn.innerHTML;
+        
         try {
-            this.showAlert('Installing updates... This may take several minutes.', 'info');
+            // Update button to show progress
+            installBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm"></i> Installing...';
+            installBtn.disabled = true;
+            
+            this.showAlert('Installing updates... This may take several minutes. Please do not close this window.', 'info');
             
             const response = await this.apiCall('/patch-management/install', {
                 method: 'POST'
             });
-
-            const result = response.data;
             
-            if (result.error) {
-                this.showAlert('Update installation failed: ' + result.error, 'danger');
-            } else {
-                let message = `Updates installed successfully. Updates installed: ${result.updates_installed || 0}`;
-                if (result.reboot_required) {
-                    message += ' A system restart is required to complete the installation.';
+            if (response.success) {
+                let message = `Installation completed successfully!`;
+                if (response.updates_installed) {
+                    message += ` Updates installed: ${response.updates_installed}`;
                 }
-                this.showAlert(message, 'success');
+                if (response.updates_failed && response.updates_failed > 0) {
+                    message += ` Failed: ${response.updates_failed}`;
+                }
+                if (response.reboot_required) {
+                    message += ' ⚠️ System restart is required to complete the installation.';
+                }
+                
+                this.showAlert(message, response.reboot_required ? 'warning' : 'success');
                 
                 // Reload patch information
                 setTimeout(() => this.loadPatchInfo(), 2000);
+            } else {
+                this.showAlert('Update installation failed: ' + (response.error || 'Unknown error'), 'danger');
             }
             
         } catch (error) {
             this.showAlert('Failed to install updates: ' + error.message, 'danger');
+        } finally {
+            // Restore button
+            installBtn.innerHTML = originalText;
+            installBtn.disabled = false;
         }
+    }
+
+    async checkForUpdates() {
+        const checkBtn = document.getElementById('checkUpdatesBtn');
+        const originalText = checkBtn.innerHTML;
+        
+        try {
+            checkBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm"></i> Checking...';
+            checkBtn.disabled = true;
+            
+            this.showAlert('Checking for available updates...', 'info');
+            
+            const response = await this.apiCall('/patch-management/updates/check', {
+                method: 'POST'
+            });
+            
+            if (response.success) {
+                const count = response.pending_count || 0;
+                this.showAlert(`Update check completed. Found ${count} available updates.`, 
+                              count > 0 ? 'warning' : 'success');
+                
+                // Reload patch information to show latest updates
+                setTimeout(() => this.loadPatchInfo(), 1000);
+            } else {
+                this.showAlert('Failed to check for updates: ' + (response.error || 'Unknown error'), 'danger');
+            }
+            
+        } catch (error) {
+            this.showAlert('Failed to check for updates: ' + error.message, 'danger');
+        } finally {
+            checkBtn.innerHTML = originalText;
+            checkBtn.disabled = false;
+        }
+    }
+
+    async enforcePolicies() {
+        if (!this.authToken) {
+            this.showAlert('Admin authentication required', 'warning');
+            return;
+        }
+
+        if (!confirm('This will enforce Windows Update policies to prevent manual user updates. Continue?')) {
+            return;
+        }
+
+        try {
+            this.showAlert('Enforcing Windows Update policies...', 'info');
+            
+            const response = await this.apiCall('/patch-management/policies/enforce', {
+                method: 'POST'
+            });
+            
+            if (response.success) {
+                let message = 'Update policies enforced successfully!';
+                if (response.results && response.results.length > 0) {
+                    message += ` Applied ${response.results.length} policy changes.`;
+                }
+                this.showAlert(message, 'success');
+                
+                // Auto-check compliance after enforcement
+                setTimeout(() => this.checkCompliance(), 1000);
+            } else {
+                this.showAlert('Failed to enforce policies: ' + (response.error || 'Unknown error'), 'danger');
+            }
+            
+        } catch (error) {
+            this.showAlert('Failed to enforce policies: ' + error.message, 'danger');
+        }
+    }
+
+    async checkCompliance() {
+        try {
+            this.showAlert('Checking policy compliance...', 'info');
+            
+            const response = await this.apiCall('/patch-management/compliance/check');
+            
+            if (response.success) {
+                const compliance = response.compliance_percentage || 0;
+                const isCompliant = response.overall_compliance;
+                
+                // Update compliance status in overview
+                const complianceEl = document.getElementById('complianceStatus');
+                if (complianceEl) {
+                    complianceEl.innerHTML = `
+                        <strong class="${isCompliant ? 'text-success' : 'text-danger'}">${compliance}%</strong><br>
+                        <small>${isCompliant ? 'Compliant' : 'Non-Compliant'}</small>
+                    `;
+                }
+                
+                // Update detailed compliance display
+                this.displayComplianceDetails(response);
+                
+                this.showAlert(`Compliance check completed. ${compliance}% compliant.`, 
+                              isCompliant ? 'success' : 'warning');
+            } else {
+                this.showAlert('Failed to check compliance: ' + (response.error || 'Unknown error'), 'danger');
+            }
+            
+        } catch (error) {
+            this.showAlert('Failed to check compliance: ' + error.message, 'danger');
+        }
+    }
+
+    displayComplianceDetails(complianceData) {
+        const detailsDiv = document.getElementById('complianceDetails');
+        if (!detailsDiv || !complianceData.compliance_details) return;
+        
+        const details = complianceData.compliance_details;
+        
+        detailsDiv.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Overall Compliance: 
+                        <span class="badge ${complianceData.overall_compliance ? 'bg-success' : 'bg-danger'}">
+                            ${complianceData.compliance_percentage}%
+                        </span>
+                    </h6>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Last checked: ${new Date(complianceData.timestamp).toLocaleString()}</small>
+                </div>
+            </div>
+            <div class="table-responsive mt-3">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Policy</th>
+                            <th>Expected Value</th>
+                            <th>Actual Value</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${details.map(policy => `
+                            <tr>
+                                <td>${policy.PolicyName}</td>
+                                <td>${policy.ExpectedValue}</td>
+                                <td>${policy.ActualValue}</td>
+                                <td>
+                                    <span class="badge ${policy.IsCompliant ? 'bg-success' : 'bg-danger'}">
+                                        ${policy.IsCompliant ? 'Compliant' : 'Non-Compliant'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    async resetUpdateService() {
+        if (!this.authToken) {
+            this.showAlert('Admin authentication required', 'warning');
+            return;
+        }
+
+        if (!confirm('This will restart the Windows Update service and clear cache. Continue?')) {
+            return;
+        }
+
+        try {
+            this.showAlert('Resetting Windows Update service...', 'info');
+            
+            const response = await this.apiCall('/patch-management/service/reset', {
+                method: 'POST'
+            });
+            
+            if (response.success) {
+                let message = 'Windows Update service reset successfully!';
+                if (response.service_reset && response.cache_cleared) {
+                    message = 'Service restarted and cache cleared successfully!';
+                } else if (response.service_reset) {
+                    message = 'Service restarted successfully, but cache clearing had issues.';
+                } else if (response.cache_cleared) {
+                    message = 'Cache cleared successfully, but service restart had issues.';
+                }
+                
+                this.showAlert(message, 'success');
+                
+                // Reload patch information after service reset
+                setTimeout(() => this.loadPatchInfo(), 3000);
+            } else {
+                this.showAlert('Failed to reset service: ' + (response.error || 'Unknown error'), 'danger');
+            }
+            
+        } catch (error) {
+            this.showAlert('Failed to reset service: ' + error.message, 'danger');
+        }
+    }
+
+    async clearUpdateCache() {
+        if (!this.authToken) {
+            this.showAlert('Admin authentication required', 'warning');
+            return;
+        }
+
+        if (!confirm('This will clear the Windows Update cache. Continue?')) {
+            return;
+        }
+
+        // This uses the same endpoint as resetUpdateService but we'll call it directly
+        await this.resetUpdateService();
     }
 
     // Utility functions
@@ -1552,6 +2034,26 @@ function clearScanLog() {
     }
 }
 
+// Cancel active scan
+async function cancelScan() {
+    if (securityAgent && securityAgent.currentScanSession) {
+        try {
+            const response = await securityAgent.apiCall(`/antivirus/cancel-scan/${securityAgent.currentScanSession}`, {
+                method: 'POST'
+            });
+            
+            if (response.success) {
+                securityAgent.addScanLogMessage('🛑 Cancelling scan - please wait...', 'warning');
+                securityAgent.showAlert('Scan cancellation requested - stopping operations...', 'warning');
+            } else {
+                securityAgent.showAlert(`Failed to cancel scan: ${response.message}`, 'danger');
+            }
+        } catch (error) {
+            securityAgent.showAlert(`Error cancelling scan: ${error.message}`, 'danger');
+        }
+    }
+}
+
 // Global functions for scheduled scan details modal
 function toggleSchedule() {
     if (securityAgent && securityAgent.currentScheduleId) {
@@ -1571,6 +2073,76 @@ function deleteSchedule() {
             }
         }
     }
+}
+
+// Global function wrappers for HTML onclick handlers
+function showAdminLogin() {
+    securityAgent?.showAdminLogin();
+}
+
+function logout() {
+    securityAgent?.logout();
+}
+
+function startScan() {
+    securityAgent?.startScan();
+}
+
+function startQuickScan() {
+    securityAgent?.startQuickScan();
+}
+
+function cancelScan() {
+    securityAgent?.cancelCurrentScan();
+}
+
+function clearScanLog() {
+    securityAgent?.clearScanLog();
+}
+
+function showScheduleModal() {
+    securityAgent?.showScheduleModal();
+}
+
+function blockUrl() {
+    securityAgent?.blockUrl();
+}
+
+function unblockUrl(url) {
+    securityAgent?.unblockUrl(url);
+}
+
+// Professional Patch Management Global Functions
+function checkForUpdates() {
+    securityAgent?.checkForUpdates();
+}
+
+function installUpdates() {
+    securityAgent?.installUpdates();
+}
+
+function enforcePolicies() {
+    securityAgent?.enforcePolicies();
+}
+
+function checkCompliance() {
+    securityAgent?.checkCompliance();
+}
+
+function resetUpdateService() {
+    securityAgent?.resetUpdateService();
+}
+
+function clearUpdateCache() {
+    securityAgent?.clearUpdateCache();
+}
+
+function adminLogin() {
+    securityAgent?.adminLogin();
+}
+
+function createScheduledScan() {
+    securityAgent?.createScheduledScan();
 }
 
 // Initialize when DOM is loaded
