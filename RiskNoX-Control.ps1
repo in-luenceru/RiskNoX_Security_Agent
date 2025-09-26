@@ -1437,7 +1437,13 @@ function Main {
                 $setupChoice = Read-Host "Would you like to set up patch management now? (Y/n)"
                 if ($setupChoice -ne 'n') {
                     Write-Log "Running patch management setup..." -Level INFO
-                    Invoke-PatchManagementSetup
+                    # Check if function exists before calling it
+                    if (Get-Command Invoke-PatchManagementSetup -ErrorAction SilentlyContinue) {
+                        Invoke-PatchManagementSetup
+                    } else {
+                        Write-Log "Invoke-PatchManagementSetup function not found. Running setup script directly..." -Level WARN
+                        & "$($Script:Config.RootPath)\Setup-PatchManagement.ps1"
+                    }
                     Write-Log "Continuing with service startup..." -Level INFO
                 }
             }
