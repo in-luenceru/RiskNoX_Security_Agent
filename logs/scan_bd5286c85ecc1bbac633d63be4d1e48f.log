@@ -1,0 +1,170 @@
+RiskNoX Antivirus Scan Report
+========================================
+Scan Path: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon
+Started: 2025-09-27 15:16:19.039295
+Completed: 2025-09-27 15:16:22.430813
+Duration: 3.4 seconds
+Files Scanned: 253
+Threats Found: 56
+
+THREATS DETECTED:
+--------------------
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\malware_sample.dat: Trojan.Generic.Malware
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\malware_sample.dat: Trojan.Generic.Malware
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\suspicious_virus.exe: Win32.TestVirus
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\suspicious_virus.exe: Win32.TestVirus
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\trojan.exe: Trojan.Win32.Generic
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\trojan.exe: Trojan.Win32.Generic
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_001.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_006.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_011.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_016.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_021.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_026.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_031.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_036.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_041.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\documents\program_046.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_001.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_006.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_011.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_016.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_021.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_026.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_031.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_036.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_041.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\downloads\program_046.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_001.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_006.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_011.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_016.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_021.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_026.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_031.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_036.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_041.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\programs\program_046.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_001.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_006.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_011.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_016.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_021.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_026.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_031.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_036.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_041.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system\program_046.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_001.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_006.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_011.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_016.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_021.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_026.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_031.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_036.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_041.exe: Heuristic.Suspicious.Exe
+C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp\program_046.exe: Heuristic.Suspicious.Exe
+
+Scan Log:
+----------
+[15:16:22]    🦠 Threat #37: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_001.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #38: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_006.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #39: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_011.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #40: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_016.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #41: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_021.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #42: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_026.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #43: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_031.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #44: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_036.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #45: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_041.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #46: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_046.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\system
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #47: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_001.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #48: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_006.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #49: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_011.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #50: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_016.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #51: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_021.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #52: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_026.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #53: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_031.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #54: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_036.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #55: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_041.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 
+[15:16:22]    🦠 Threat #56: Heuristic.Suspicious.Exe
+[15:16:22]       📄 File: program_046.exe
+[15:16:22]       📍 Location: C:\Users\ANANDHU\AppData\Local\Temp\risknox_checkpoint_test_llfoqmon\temp
+[15:16:22]       📏 Size: 6 bytes
+[15:16:22] 

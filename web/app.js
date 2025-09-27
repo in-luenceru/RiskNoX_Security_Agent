@@ -256,6 +256,73 @@ class SecurityAgent {
         this.showAlert('Logged out successfully', 'info');
     }
 
+    showAdminLogin() {
+        const modal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
+        modal.show();
+    }
+
+    async cancelCurrentScan() {
+        if (this.currentScanSession) {
+            try {
+                console.log('Cancelling scan session:', this.currentScanSession);
+                
+                const response = await this.apiCall(`/antivirus/cancel-scan/${this.currentScanSession}`, {
+                    method: 'POST'
+                });
+                
+                if (response.success) {
+                    this.addScanLogMessage('🛑 Cancelling scan - please wait...', 'warning');
+                    this.showAlert('Scan cancellation requested - stopping operations...', 'warning');
+                    
+                    // Clear the current session
+                    this.currentScanSession = null;
+                    
+                    // Stop monitoring
+                    if (this.scanMonitoringInterval) {
+                        clearInterval(this.scanMonitoringInterval);
+                        this.scanMonitoringInterval = null;
+                    }
+                    
+                    // Reset UI
+                    this.resetScanUI();
+                } else {
+                    this.showAlert(`Failed to cancel scan: ${response.message}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error cancelling scan:', error);
+                this.showAlert(`Error cancelling scan: ${error.message}`, 'danger');
+            }
+        } else {
+            this.showAlert('No active scan to cancel', 'warning');
+        }
+    }
+
+    resetScanUI() {
+        // Re-enable scan buttons
+        const startScanBtn = document.getElementById('startScanBtn');
+        const quickScanBtn = document.getElementById('quickScanBtn');
+        const cancelScanBtn = document.getElementById('cancelScanBtn');
+        
+        if (startScanBtn) startScanBtn.disabled = false;
+        if (quickScanBtn) quickScanBtn.disabled = false;
+        if (cancelScanBtn) cancelScanBtn.style.display = 'none';
+        
+        // Hide progress elements
+        const scanProgress = document.getElementById('scanProgress');
+        const scanProgressDetails = document.getElementById('scanProgressDetails');
+        
+        if (scanProgress) scanProgress.style.display = 'none';
+        if (scanProgressDetails) scanProgressDetails.style.display = 'none';
+        
+        // Reset progress bar
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) progressBar.style.width = '0%';
+        
+        // Clear monitoring variables
+        this.currentScanSession = null;
+        this.lastScanUpdate = null;
+    }
+
     // Antivirus Functions
     async startScan() {
         const selectedType = document.querySelector('input[name="scanType"]:checked')?.value || 'directory';
@@ -1963,13 +2030,10 @@ Scan Log:
 // Global functions for HTML onclick events
 let securityAgent;
 
-function showAdminLogin() {
-    const modal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
-    modal.show();
-}
-
 function adminLogin() {
-    securityAgent.adminLogin();
+    if (securityAgent) {
+        securityAgent.adminLogin();
+    }
 }
 
 function logout() {
@@ -2077,7 +2141,13 @@ function deleteSchedule() {
 
 // Global function wrappers for HTML onclick handlers
 function showAdminLogin() {
-    securityAgent?.showAdminLogin();
+    if (securityAgent) {
+        securityAgent.showAdminLogin();
+    } else {
+        // Fallback if securityAgent not ready
+        const modal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
+        modal.show();
+    }
 }
 
 function logout() {
@@ -2093,7 +2163,9 @@ function startQuickScan() {
 }
 
 function cancelScan() {
-    securityAgent?.cancelCurrentScan();
+    if (securityAgent) {
+        securityAgent.cancelCurrentScan();
+    }
 }
 
 function clearScanLog() {

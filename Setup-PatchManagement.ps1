@@ -494,7 +494,7 @@ function Main {
 "@ -ForegroundColor Cyan
 
     Write-SetupLog "Starting RiskNoX Professional Patch Management setup..." -Level INFO
-    Write-SetupLog "Setup mode: $(if ($FullSetup) { "Full Setup" } else { "Basic Setup" })$(if ($TestMode) { " (Test Mode)" } else { "" })" -Level INFO
+    Write-SetupLog "Setup mode: $(if ($FullSetup) { "Full Setup" } else { "Basic Setup" })$(if ($TestMode) { " (Test Mode)" } else { """ })" -Level INFO
     
     # Change to script directory
     Set-Location $Script:Config.RootPath

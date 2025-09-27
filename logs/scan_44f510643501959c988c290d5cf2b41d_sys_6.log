@@ -1,0 +1,59 @@
+RiskNoX Antivirus Scan Report
+========================================
+Scan Path: C:\Temp
+Started: 2025-09-27 16:33:59.744824
+Completed: 2025-09-27 16:34:00.472136
+Duration: 0.7 seconds
+Files Scanned: 2
+Threats Found: 2
+
+THREATS DETECTED:
+--------------------
+C:\Temp\test.wav: Test.Virus.Signature
+C:\Temp\test.wav: Test.Virus.Signature
+
+Scan Log:
+----------
+[16:33:59] 🚀 Initializing RiskNoX Antivirus Engine...
+[16:33:59] 🔧 Loading virus signatures and threat databases...
+[16:34:00] 📦 Creating enhanced threat signatures...
+[16:34:00] 📊 Analyzing directory structure...
+[16:34:00] 📁 Scan target: C:\Temp
+[16:34:00] 📈 Found 2 scannable files
+[16:34:00] 🎯 Starting comprehensive scan of: C:\Temp
+[16:34:00] ⚡ Beginning real-time threat analysis...
+[16:34:00] 🔄 Beginning file-by-file analysis...
+[16:34:00] 🔍 50% complete - 1/2 files - Speed: 188.5 files/sec
+[16:34:00] 📄 Scanning: startup-batch.log
+[16:34:00] 🔍 100% complete - 2/2 files - Speed: 77.4 files/sec
+[16:34:00] 📄 Scanning: test.wav
+[16:34:00] 🚨 THREAT DETECTED: Test.Virus.Signature [Confidence: 85%]
+[16:34:00]    📁 File: test.wav
+[16:34:00]    📍 Path: C:\Temp
+[16:34:00] 🔥 HIGH-CONFIDENCE DETECTION via Filename Analysis
+[16:34:00] 🚨 THREAT DETECTED: Test.Virus.Signature
+[16:34:00]    📁 File: test.wav
+[16:34:00]    📍 Path: C:\Temp
+[16:34:00] 🏁 Finalizing scan results and generating report...
+[16:34:00] 📊 COMPREHENSIVE SCAN REPORT:
+[16:34:00]    📂 Scan path: C:\Temp
+[16:34:00]    📄 Files analyzed: 2
+[16:34:00]    💾 Data scanned: 0.5 MB
+[16:34:00]    🎯 Scan coverage: 100%
+[16:34:00]    ⏱️  Duration: 0.7 seconds
+[16:34:00]    ⚡ Average speed: 2.0 files/sec
+[16:34:00]    🦠 Threats detected: 2
+[16:34:00] 
+[16:34:00] 🚨 SECURITY ALERT: 2 threat(s) found!
+[16:34:00] ⚠️  ACTION REQUIRED: Review and quarantine detected threats
+[16:34:00] 
+[16:34:00]    🦠 Threat #1: Test.Virus.Signature
+[16:34:00]       📄 File: test.wav
+[16:34:00]       📍 Location: C:\Temp
+[16:34:00]       📏 Size: 528,492 bytes
+[16:34:00] 
+[16:34:00]    🦠 Threat #2: Test.Virus.Signature
+[16:34:00]       📄 File: test.wav
+[16:34:00]       📍 Location: C:\Temp
+[16:34:00]       📏 Size: 528,492 bytes
+[16:34:00] 

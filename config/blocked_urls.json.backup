@@ -1,0 +1,10 @@
+[
+  {
+    "url": "twitter.com",
+    "original_url": "twitter.com",
+    "blocked_at": "2025-09-27T12:39:38.787371",
+    "status": "active",
+    "method": "hosts_file",
+    "block_count": 1
+  }
+]
