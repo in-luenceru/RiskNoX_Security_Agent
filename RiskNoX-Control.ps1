@@ -43,7 +43,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet('start', 'stop', 'restart', 'status', 'install', 'uninstall', 'scan', 'block', 'unblock', 'update', 
-                 'patch-check', 'patch-install', 'patch-enforce', 'patch-compliance', 'patch-reset', 'patch-setup', 'help')]
+                 'patch-check', 'patch-install', 'patch-enforce', 'patch-compliance', 'patch-reset', 'patch-setup', 
+                 'test-connection', 'enroll', 'agent-status', 'send-command', 'help')]
     [string]$Action,
     
     [Parameter(Mandatory = $false)]
@@ -63,7 +64,16 @@ param(
     [switch]$FullSetup,
     
     [Parameter(Mandatory = $false)]
-    [switch]$TestMode
+    [switch]$TestMode,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$ManagerUrl,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$Command,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$Remote
 )
 
 # Configuration
@@ -214,6 +224,28 @@ function Get-AllBackendProcesses {
     return $backendProcesses
 }
 
+function Get-AllAgentProcesses {
+    # Get all Python processes that might be running the agent
+    $allPythonProcesses = Get-Process -Name "python" -ErrorAction SilentlyContinue
+    $agentProcesses = @()
+    
+    if ($allPythonProcesses) {
+        foreach ($proc in $allPythonProcesses) {
+            try {
+                $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId = $($proc.Id)").CommandLine
+                if ($commandLine -and $commandLine -like "*agent_main.py*") {
+                    $agentProcesses += $proc
+                }
+            }
+            catch {
+                # Continue if we can't get command line
+            }
+        }
+    }
+    
+    return $agentProcesses
+}
+
 function Start-Backend {
     param([switch]$ShowLogs)
     
@@ -327,46 +359,151 @@ function Stop-Backend {
 }
 
 function Get-ServiceStatus {
-    Write-Log "Checking RiskNoX Security Agent Status..." -Level INFO
+    Write-Log "═══════════════════════════════════════════════════════════" -Level INFO
+    Write-Log "        RiskNoX Security System - Status Report" -Level INFO
+    Write-Log "═══════════════════════════════════════════════════════════" -Level INFO
     
-    # Backend status
-    $backendProcesses = Get-AllBackendProcesses
-    if ($backendProcesses -and $backendProcesses.Count -gt 0) {
-        if ($backendProcesses.Count -eq 1) {
-            Write-Log "✓ Backend Service: Running (PID: $($backendProcesses[0].Id))" -Level SUCCESS
-        } else {
-            $pidList = ($backendProcesses | ForEach-Object { $_.Id }) -join ", "
-            Write-Log "✓ Backend Service: Running ($($backendProcesses.Count) processes - PIDs: $pidList)" -Level SUCCESS
+    # Check if this is agent or backend mode
+    $agentScript = Join-Path $Script:Config.RootPath "agent\agent_main.py"
+    $agentConfigFile = Join-Path $Script:Config.RootPath "config\agent_info.json"
+    $agentMainConfig = Join-Path $Script:Config.RootPath "config\agent_config.xml"
+    
+    if ((Test-Path $agentScript) -or (Test-Path $agentMainConfig)) {
+        # Agent mode status
+        Write-Log "Operating Mode: Security Agent" -Level INFO
+        Write-Log "───────────────────────────────────────────────────────────" -Level INFO
+        
+        # Agent process status
+        $agentProcesses = Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object {
+            $_.ProcessName -eq "python" -and
+            (Get-WmiObject Win32_Process -Filter "ProcessId = $($_.Id)" -ErrorAction SilentlyContinue).CommandLine -like "*agent_main.py*"
         }
-        Write-Log "  └─ Web Interface: http://localhost:$($Script:Config.BackendPort)" -Level INFO
+        
+        if ($agentProcesses) {
+            Write-Log "✓ Agent Service: Running (PID: $($agentProcesses[0].Id))" -Level SUCCESS
+            
+            # Check uptime
+            try {
+                $startTime = $agentProcesses[0].StartTime
+                $uptime = (Get-Date) - $startTime
+                Write-Log "  ├─ Uptime: $($uptime.Days)d $($uptime.Hours)h $($uptime.Minutes)m" -Level INFO
+            }
+            catch {
+                Write-Log "  ├─ Uptime: Unknown" -Level INFO
+            }
+            
+            # Check memory usage
+            try {
+                $memoryMB = [math]::Round($agentProcesses[0].WorkingSet64 / 1MB, 2)
+                Write-Log "  ├─ Memory Usage: $memoryMB MB" -Level INFO
+            }
+            catch {
+                Write-Log "  ├─ Memory Usage: Unknown" -Level INFO
+            }
+            
+            # Check status file
+            $statusFile = Join-Path $Script:Config.RootPath "logs\agent.status"
+            if (Test-Path $statusFile) {
+                $status = Get-Content $statusFile -ErrorAction SilentlyContinue
+                Write-Log "  └─ Status: $status" -Level INFO
+            }
+        } else {
+            Write-Log "✗ Agent Service: Stopped" -Level ERROR
+        }
+        
+        # Manager connectivity
+        if (Test-Path $agentConfigFile) {
+            try {
+                $agentInfo = Get-Content $agentConfigFile | ConvertFrom-Json
+                if ($agentInfo.manager_url) {
+                    Write-Log "Manager Connection:" -Level INFO
+                    Write-Log "  ├─ URL: $($agentInfo.manager_url)" -Level INFO
+                    Write-Log "  ├─ Agent Name: $($agentInfo.agent_id)" -Level INFO
+                    Write-Log "  ├─ Enrolled: $(if ($agentInfo.enrolled) { 'Yes' } else { 'No' })" -Level INFO
+                    
+                    # Test connectivity
+                    try {
+                        $response = Invoke-RestMethod -Uri "$($agentInfo.manager_url)/health" -TimeoutSec 5 -ErrorAction SilentlyContinue
+                        if ($response) {
+                            Write-Log "  └─ Connectivity: ✓ Online" -Level SUCCESS
+                        } else {
+                            Write-Log "  └─ Connectivity: ✗ Offline" -Level WARN
+                        }
+                    }
+                    catch {
+                        Write-Log "  └─ Connectivity: ✗ Offline" -Level WARN
+                    }
+                } else {
+                    Write-Log "Manager Connection: Not configured (Standalone mode)" -Level INFO
+                }
+            }
+            catch {
+                Write-Log "Manager Connection: Configuration error" -Level ERROR
+            }
+        } else {
+            Write-Log "Manager Connection: Not configured (Standalone mode)" -Level INFO
+        }
+        
     } else {
-        Write-Log "✗ Backend Service: Stopped" -Level WARN
+        # Backend mode status
+        Write-Log "Operating Mode: Backend Server" -Level INFO
+        Write-Log "───────────────────────────────────────────────────────────" -Level INFO
+        
+        # Backend status
+        $backendProcesses = Get-AllBackendProcesses
+        if ($backendProcesses -and $backendProcesses.Count -gt 0) {
+            if ($backendProcesses.Count -eq 1) {
+                Write-Log "✓ Backend Service: Running (PID: $($backendProcesses[0].Id))" -Level SUCCESS
+            } else {
+                Write-Log "✓ Backend Service: Running ($($backendProcesses.Count) processes)" -Level SUCCESS
+            }
+            Write-Log "  └─ Web Interface: http://localhost:$($Script:Config.BackendPort)" -Level INFO
+        } else {
+            Write-Log "✗ Backend Service: Stopped" -Level ERROR
+        }
     }
+    
+    Write-Log "───────────────────────────────────────────────────────────" -Level INFO
+    
+    # Security components status
+    Write-Log "Security Components:" -Level INFO
     
     # ClamAV status
     $clamScanPath = Join-Path $Script:Config.RootPath "$($Script:Config.VendorPath)\clamscan.exe"
     if (Test-Path $clamScanPath) {
-        Write-Log "✓ ClamAV Antivirus: Available" -Level SUCCESS
+        Write-Log "  ├─ Antivirus Engine: ✓ ClamAV Available" -Level SUCCESS
     } else {
-        Write-Log "✗ ClamAV Antivirus: Not Found" -Level ERROR
+        Write-Log "  ├─ Antivirus Engine: ✗ Not Available" -Level WARN
     }
     
-    # Configuration status
-    $configPath = Join-Path $Script:Config.RootPath $Script:Config.ConfigPath
-    if (Test-Path $configPath) {
-        Write-Log "✓ Configuration: Available" -Level SUCCESS
+    # Web protection status
+    $hostsFile = "C:\Windows\System32\drivers\etc\hosts"
+    if (Test-Path $hostsFile) {
+        try {
+            $hostsContent = Get-Content $hostsFile -Raw -ErrorAction SilentlyContinue
+            $blockedCount = ($hostsContent -split "`n" | Where-Object { $_ -match "# RiskNoX Block" }).Count
+            if ($blockedCount -gt 0) {
+                Write-Log "  ├─ Web Protection: ✓ Active ($blockedCount blocked sites)" -Level SUCCESS
+            } else {
+                Write-Log "  ├─ Web Protection: ✓ Ready (no sites blocked)" -Level SUCCESS
+            }
+        }
+        catch {
+            Write-Log "  ├─ Web Protection: ⚠ Status unknown" -Level WARN
+        }
     } else {
-        Write-Log "✗ Configuration: Missing" -Level WARN
+        Write-Log "  ├─ Web Protection: ✗ Cannot access hosts file" -Level ERROR
     }
     
-    # Logs status
-    $logsPath = Join-Path $Script:Config.RootPath $Script:Config.LogsPath
-    if (Test-Path $logsPath) {
-        $logFiles = Get-ChildItem $logsPath -File | Measure-Object
-        Write-Log "✓ Logs: $($logFiles.Count) log files" -Level SUCCESS
+    # Patch management status
+    $patchConfigPath = Join-Path $Script:Config.RootPath "config\patch_config.json"
+    if (Test-Path $patchConfigPath) {
+        Write-Log "  └─ Patch Management: ✓ Configured" -Level SUCCESS
     } else {
-        Write-Log "✗ Logs: Directory not found" -Level WARN
+        Write-Log "  └─ Patch Management: ○ Not configured" -Level INFO
     }
+    
+    Write-Log "═══════════════════════════════════════════════════════════" -Level INFO
 }
 
 function Invoke-AntivirusScan {
@@ -604,6 +741,12 @@ WEB BLOCKING ACTIONS:
     block               Block a website URL (requires -Url, admin privileges)
     unblock             Unblock a website URL (requires -Url, admin privileges)
 
+AGENT COMMUNICATION ACTIONS:
+    test-connection     Test connectivity to RiskNoX Manager
+    enroll              Enroll this agent with the RiskNoX Manager
+    agent-status        Show detailed agent status and configuration
+    send-command        Send a command to the agent for execution
+
 PROFESSIONAL PATCH MANAGEMENT ACTIONS:
     patch-setup         Setup professional patch management system (admin privileges)
     patch-check         Check for available Windows updates
@@ -619,6 +762,9 @@ OPTIONS:
     -Path <path>        Specify path for scan operations
     -Url <url>          Specify URL for web blocking operations
     -Service <service>  Specify service (backend, all)
+    -ManagerUrl <url>   Specify RiskNoX Manager URL (e.g., http://192.168.1.100:8001)
+    -Command <cmd>      Specify command to send to agent
+    -Remote             Execute action remotely via manager
 
 EXAMPLES:
 
@@ -667,6 +813,19 @@ Professional Patch Management Operations:
         
     .\RiskNoX-Control.ps1 -Action patch-reset
         Reset Windows Update service if experiencing issues
+
+Agent Communication Operations:
+    .\RiskNoX-Control.ps1 -Action test-connection -ManagerUrl "http://192.168.1.100:8001"
+        Test connectivity to the RiskNoX Manager server
+        
+    .\RiskNoX-Control.ps1 -Action enroll -ManagerUrl "http://192.168.1.100:8001"
+        Enroll this agent with the manager for centralized management
+        
+    .\RiskNoX-Control.ps1 -Action agent-status
+        Show detailed status of the local agent
+        
+    .\RiskNoX-Control.ps1 -Action send-command -Command "scan C:\Users" -ManagerUrl "http://192.168.1.100:8001"
+        Send a scan command to the agent via the manager
 
 PROFESSIONAL PATCH MANAGEMENT FEATURES:
     ✓ Enterprise-grade Windows Update API integration
@@ -764,6 +923,560 @@ function Show-LiveLogs {
     catch {
         Write-Log "Log monitoring interrupted: $($_.Exception.Message)" -Level WARN
     }
+}
+
+# Agent Communication Functions
+function Test-ManagerConnection {
+    param([string]$ManagerUrl)
+    
+    if (-not $ManagerUrl) {
+        $configFile = Join-Path $Script:Config.RootPath "config\agent_info.json"
+        if (Test-Path $configFile) {
+            $config = Get-Content $configFile | ConvertFrom-Json
+            $ManagerUrl = $config.manager_url
+        } else {
+            Write-Log "Manager URL not provided and no configuration found" -Level ERROR
+            return $false
+        }
+    }
+    
+    Write-Log "Testing connection to manager: $ManagerUrl" -Level INFO
+    
+    try {
+        $response = Invoke-RestMethod -Uri "$ManagerUrl/health" -Method GET -TimeoutSec 10
+        if ($response) {
+            Write-Log "✓ Manager is responding" -Level SUCCESS
+            Write-Log "Manager info: $($response | ConvertTo-Json -Compress)" -Level INFO
+            return $true
+        }
+    }
+    catch {
+        Write-Log "✗ Failed to connect to manager: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+    
+    return $false
+}
+
+function Invoke-AgentEnrollment {
+    param([string]$ManagerUrl)
+    
+    Write-Log "Starting agent enrollment process..." -Level INFO
+    
+    if (-not $ManagerUrl) {
+        $configFile = Join-Path $Script:Config.RootPath "config\agent_info.json"
+        if (Test-Path $configFile) {
+            $config = Get-Content $configFile | ConvertFrom-Json
+            $ManagerUrl = $config.manager_url
+        } else {
+            Write-Log "Manager URL not provided and no configuration found" -Level ERROR
+            return $false
+        }
+    }
+    
+    try {
+        $venvPython = Join-Path $Script:Config.RootPath "$($Script:Config.VirtualEnvPath)\Scripts\python.exe"
+        $enrollmentScript = Join-Path $Script:Config.RootPath "agent\enrollment.py"
+        
+        if (-not (Test-Path $enrollmentScript)) {
+            Write-Log "Enrollment script not found: $enrollmentScript" -Level ERROR
+            return $false
+        }
+        
+        Push-Location $Script:Config.RootPath
+        
+        $arguments = @(
+            $enrollmentScript,
+            "--manager-url", $ManagerUrl,
+            "--agent-name", $env:COMPUTERNAME
+        )
+        
+        Write-Log "Executing enrollment: $venvPython $($arguments -join ' ')" -Level INFO
+        
+        $process = Start-Process -FilePath $venvPython -ArgumentList $arguments -Wait -NoNewWindow -PassThru -RedirectStandardOutput "logs\enrollment_output.log" -RedirectStandardError "logs\enrollment_error.log"
+        
+        if ($process.ExitCode -eq 0) {
+            Write-Log "✓ Agent enrollment completed successfully" -Level SUCCESS
+            
+            # Show enrollment output
+            if (Test-Path "logs\enrollment_output.log") {
+                $output = Get-Content "logs\enrollment_output.log" -Raw
+                Write-Log "Enrollment output: $output" -Level INFO
+            }
+            
+            return $true
+        } else {
+            Write-Log "✗ Agent enrollment failed with exit code: $($process.ExitCode)" -Level ERROR
+            
+            # Show error output
+            if (Test-Path "logs\enrollment_error.log") {
+                $errorOutput = Get-Content "logs\enrollment_error.log" -Raw
+                Write-Log "Enrollment error: $errorOutput" -Level ERROR
+            }
+            
+            return $false
+        }
+    }
+    catch {
+        Write-Log "Enrollment process failed: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Get-AgentStatus {
+    Write-Log "Getting agent status..." -Level INFO
+    
+    try {
+        $venvPython = Join-Path $Script:Config.RootPath "$($Script:Config.VirtualEnvPath)\Scripts\python.exe"
+        $agentScript = Join-Path $Script:Config.RootPath "agent\agent_main.py"
+        
+        Push-Location $Script:Config.RootPath
+        
+        $arguments = @(
+            $agentScript,
+            "--status"
+        )
+        
+        $process = Start-Process -FilePath $venvPython -ArgumentList $arguments -Wait -NoNewWindow -PassThru -RedirectStandardOutput "logs\status_output.log" -RedirectStandardError "logs\status_error.log"
+        
+        if (Test-Path "logs\status_output.log") {
+            $output = Get-Content "logs\status_output.log" -Raw
+            Write-Log "Agent status: $output" -Level INFO
+        }
+        
+        return $process.ExitCode -eq 0
+    }
+    catch {
+        Write-Log "Failed to get agent status: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Send-AgentCommand {
+    param(
+        [string]$Command,
+        [string]$ManagerUrl
+    )
+    
+    if (-not $Command) {
+        Write-Log "Command parameter is required" -Level ERROR
+        return $false
+    }
+    
+    Write-Log "Sending command to agent: $Command" -Level INFO
+    
+    try {
+        $venvPython = Join-Path $Script:Config.RootPath "$($Script:Config.VirtualEnvPath)\Scripts\python.exe"
+        $commandScript = Join-Path $Script:Config.RootPath "agent\command_handler.py"
+        
+        Push-Location $Script:Config.RootPath
+        
+        $arguments = @(
+            $commandScript,
+            "--command", $Command
+        )
+        
+        if ($ManagerUrl) {
+            $arguments += @("--manager-url", $ManagerUrl)
+        }
+        
+        $process = Start-Process -FilePath $venvPython -ArgumentList $arguments -Wait -NoNewWindow -PassThru -RedirectStandardOutput "logs\command_output.log" -RedirectStandardError "logs\command_error.log"
+        
+        if (Test-Path "logs\command_output.log") {
+            $output = Get-Content "logs\command_output.log" -Raw
+            Write-Log "Command output: $output" -Level INFO
+        }
+        
+        if ($process.ExitCode -eq 0) {
+            Write-Log "✓ Command executed successfully" -Level SUCCESS
+            return $true
+        } else {
+            Write-Log "✗ Command execution failed" -Level ERROR
+            
+            if (Test-Path "logs\command_error.log") {
+                $errorOutput = Get-Content "logs\command_error.log" -Raw
+                Write-Log "Command error: $errorOutput" -Level ERROR
+            }
+            
+            return $false
+        }
+    }
+    catch {
+        Write-Log "Failed to send command: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Initialize-AgentEnvironment {
+    Write-Log "Initializing agent environment..." -Level INFO
+    
+    try {
+        # Create necessary directories
+        $directories = @("logs", "config", "vendor", "scripts", "temp")
+        foreach ($dir in $directories) {
+            $dirPath = Join-Path $Script:Config.RootPath $dir
+            if (-not (Test-Path $dirPath)) {
+                New-Item -ItemType Directory -Path $dirPath -Force | Out-Null
+                Write-Log "Created directory: $dir" -Level INFO
+            }
+        }
+        
+        # Check Python virtual environment
+        $venvPath = Join-Path $Script:Config.RootPath $Script:Config.VirtualEnvPath
+        $venvPython = Join-Path $venvPath "Scripts\python.exe"
+        
+        if (-not (Test-Path $venvPython)) {
+            Write-Log "Python virtual environment not found. Creating..." -Level WARN
+            
+            # Create virtual environment
+            python -m venv $venvPath
+            if ($LASTEXITCODE -eq 0) {
+                Write-Log "Virtual environment created successfully" -Level SUCCESS
+            } else {
+                Write-Log "Failed to create virtual environment" -Level ERROR
+                return $false
+            }
+            
+            # Install dependencies
+            Write-Log "Installing Python dependencies..." -Level INFO
+            & $venvPython -m pip install --upgrade pip
+            
+            $requirementsFile = Join-Path $Script:Config.RootPath "requirements.txt"
+            if (Test-Path $requirementsFile) {
+                & $venvPython -m pip install -r $requirementsFile
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Log "Dependencies installed successfully" -Level SUCCESS
+                } else {
+                    Write-Log "Failed to install dependencies" -Level ERROR
+                    return $false
+                }
+            } else {
+                Write-Log "Requirements file not found, installing basic dependencies..." -Level WARN
+                & $venvPython -m pip install requests websockets cryptography structlog colorama
+            }
+        }
+        
+        # Verify ClamAV availability
+        $clamScanPath = Join-Path $Script:Config.RootPath "$($Script:Config.VendorPath)\clamscan.exe"
+        if (Test-Path $clamScanPath) {
+            Write-Log "✓ ClamAV antivirus engine found" -Level SUCCESS
+        } else {
+            Write-Log "⚠ ClamAV not found - antivirus features will be limited" -Level WARN
+        }
+        
+        # Check agent configuration
+        $agentConfigFile = Join-Path $Script:Config.RootPath "config\agent_config.xml"
+        if (-not (Test-Path $agentConfigFile)) {
+            Write-Log "Agent configuration not found, creating default..." -Level WARN
+            Initialize-DefaultAgentConfig
+        }
+        
+        # Verify agent scripts
+        $agentScript = Join-Path $Script:Config.RootPath "agent\agent_main.py"
+        if (-not (Test-Path $agentScript)) {
+            Write-Log "Agent main script not found: $agentScript" -Level ERROR
+            return $false
+        }
+        
+        return $true
+    }
+    catch {
+        Write-Log "Failed to initialize agent environment: $($_.Exception.Message)" -Level ERROR
+        return $false
+    }
+}
+
+function Initialize-DefaultAgentConfig {
+    Write-Log "Creating default agent configuration..." -Level INFO
+    
+    $configPath = Join-Path $Script:Config.RootPath "config\agent_config.xml"
+    $defaultConfig = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<agent_config>
+    <agent>
+        <id>$env:COMPUTERNAME</id>
+        <version>1.0.0</version>
+        <log_level>INFO</log_level>
+        <output_directory>scripts</output_directory>
+        <config_directory>config</config_directory>
+        <vendor_directory>vendor</vendor_directory>
+    </agent>
+    <server>
+        <url>http://localhost:8001</url>
+        <websocket_url>ws://localhost:8001/ws</websocket_url>
+        <api_endpoint>/api/agents</api_endpoint>
+        <command_port>9090</command_port>
+    </server>
+    <modules>
+        <antivirus enabled="true">
+            <scan_interval_hours>24</scan_interval_hours>
+            <realtime_protection>true</realtime_protection>
+            <update_interval_hours>6</update_interval_hours>
+        </antivirus>
+        <web_protection enabled="true">
+            <dns_filtering>true</dns_filtering>
+            <url_blocking>true</url_blocking>
+            <safe_browsing>true</safe_browsing>
+        </web_protection>
+        <patch_management enabled="true">
+            <auto_install_critical>true</auto_install_critical>
+            <reboot_schedule>02:00</reboot_schedule>
+            <maintenance_window>weekend</maintenance_window>
+        </patch_management>
+        <monitoring enabled="true">
+            <performance_metrics>true</performance_metrics>
+            <security_events>true</security_events>
+            <network_monitoring>true</network_monitoring>
+        </monitoring>
+    </modules>
+</agent_config>
+"@
+    
+    Set-Content -Path $configPath -Value $defaultConfig -Encoding UTF8
+    Write-Log "Default agent configuration created" -Level SUCCESS
+}
+
+function Test-AgentDependencies {
+    Write-Log "Testing agent dependencies..." -Level INFO
+    
+    $issues = @()
+    
+    # Test Python virtual environment
+    $venvPython = Join-Path $Script:Config.RootPath "$($Script:Config.VirtualEnvPath)\Scripts\python.exe"
+    if (-not (Test-Path $venvPython)) {
+        $issues += "Python virtual environment not found"
+    } else {
+        try {
+            $pythonVersion = & $venvPython --version 2>$null
+            Write-Log "Python environment: $pythonVersion" -Level SUCCESS
+        }
+        catch {
+            $issues += "Python virtual environment is not working properly"
+        }
+    }
+    
+    # Test required Python modules
+    $requiredModules = @("requests", "websockets", "cryptography", "structlog")
+    foreach ($module in $requiredModules) {
+        try {
+            & $venvPython -c "import $module" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Log "✓ Python module '$module' available" -Level SUCCESS
+            } else {
+                $issues += "Required Python module '$module' not installed"
+            }
+        }
+        catch {
+            $issues += "Error checking Python module '$module'"
+        }
+    }
+    
+    # Test agent scripts
+    $criticalScripts = @(
+        "agent\agent_main.py",
+        "agent\websocket_client.py",
+        "agent\command_handler.py"
+    )
+    
+    foreach ($script in $criticalScripts) {
+        $scriptPath = Join-Path $Script:Config.RootPath $script
+        if (-not (Test-Path $scriptPath)) {
+            $issues += "Critical agent script missing: $script"
+        }
+    }
+    
+    if ($issues.Count -gt 0) {
+        Write-Log "Dependency check failed:" -Level ERROR
+        foreach ($issue in $issues) {
+            Write-Log "  - $issue" -Level ERROR
+        }
+        return $false
+    }
+    
+    Write-Log "All agent dependencies verified" -Level SUCCESS
+    return $true
+}
+
+function Start-AgentService {
+    Write-Log "Starting RiskNoX Agent Service with full initialization..." -Level INFO
+    
+    try {
+        # Step 1: Initialize environment
+        if (-not (Initialize-AgentEnvironment)) {
+            Write-Log "Failed to initialize agent environment" -Level ERROR
+            return $null
+        }
+        
+        # Step 2: Test dependencies
+        if (-not (Test-AgentDependencies)) {
+            Write-Log "Agent dependencies not satisfied" -Level ERROR
+            return $null
+        }
+        
+        # Step 3: Check if agent is already running
+        $agentProcesses = Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object {
+            $_.ProcessName -eq "python" -and
+            (Get-WmiObject Win32_Process -Filter "ProcessId = $($_.Id)" -ErrorAction SilentlyContinue).CommandLine -like "*agent_main.py*"
+        }
+        
+        if ($agentProcesses) {
+            Write-Log "Agent is already running (PID: $($agentProcesses[0].Id))" -Level WARN
+            return $agentProcesses[0]
+        }
+        
+        # Step 4: Prepare startup
+        Push-Location $Script:Config.RootPath
+        
+        $venvPython = Join-Path $Script:Config.RootPath "$($Script:Config.VirtualEnvPath)\Scripts\python.exe"
+        $agentScript = Join-Path $Script:Config.RootPath "agent\agent_main.py"
+        
+        # Step 5: Initialize antivirus definitions
+        Write-Log "Checking antivirus definitions..." -Level INFO
+        $clamScanPath = Join-Path $Script:Config.RootPath "$($Script:Config.VendorPath)\clamscan.exe"
+        if (Test-Path $clamScanPath) {
+            $freshclamPath = Join-Path $Script:Config.RootPath "$($Script:Config.VendorPath)\freshclam.exe"
+            if (Test-Path $freshclamPath) {
+                Write-Log "Updating antivirus definitions..." -Level INFO
+                try {
+                    $updateProcess = Start-Process -FilePath $freshclamPath -ArgumentList "--quiet", "--no-warnings" -Wait -NoNewWindow -PassThru
+                    if ($updateProcess.ExitCode -eq 0) {
+                        Write-Log "✓ Antivirus definitions updated" -Level SUCCESS
+                    } else {
+                        Write-Log "⚠ Antivirus update completed with warnings" -Level WARN
+                    }
+                }
+                catch {
+                    Write-Log "⚠ Could not update antivirus definitions: $($_.Exception.Message)" -Level WARN
+                }
+            }
+        }
+        
+        # Step 6: Setup Windows Firewall rules
+        Write-Log "Configuring Windows Firewall..." -Level INFO
+        try {
+            $ruleName = "RiskNoX Agent Outbound"
+            $existingRule = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
+            if (-not $existingRule) {
+                New-NetFirewallRule -DisplayName $ruleName -Direction Outbound -Protocol TCP -Action Allow -Profile Any -ErrorAction SilentlyContinue
+                Write-Log "✓ Firewall rule created" -Level SUCCESS
+            } else {
+                Write-Log "✓ Firewall rule already exists" -Level SUCCESS
+            }
+        }
+        catch {
+            Write-Log "⚠ Could not configure firewall (non-admin?): $($_.Exception.Message)" -Level WARN
+        }
+        
+        # Step 7: Start agent process
+        Write-Log "Starting agent process..." -Level INFO
+        $arguments = @($agentScript)
+        
+        # Add debug flag if needed
+        if ($env:RISKNOX_DEBUG -eq "1") {
+            $arguments += "--debug"
+        }
+        
+        $process = Start-Process -FilePath $venvPython -ArgumentList $arguments -NoNewWindow -PassThru -RedirectStandardOutput "logs\agent_stdout.log" -RedirectStandardError "logs\agent_stderr.log"
+        
+        # Step 8: Wait for agent to initialize
+        Write-Log "Waiting for agent to initialize..." -Level INFO
+        $maxWaitTime = 30
+        $waitTime = 0
+        
+        while ($waitTime -lt $maxWaitTime) {
+            Start-Sleep -Seconds 1
+            $waitTime++
+            
+            # Check if process is still running
+            if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
+                Write-Log "✗ Agent process terminated during startup" -Level ERROR
+                
+                # Show error logs
+                $errorLog = Join-Path $Script:Config.RootPath "logs\agent_stderr.log"
+                if (Test-Path $errorLog) {
+                    $errorContent = Get-Content $errorLog -Raw -ErrorAction SilentlyContinue
+                    if ($errorContent) {
+                        Write-Log "Agent error output: $errorContent" -Level ERROR
+                    }
+                }
+                return $null
+            }
+            
+            # Check if agent is responding (look for success indicators in logs)
+            $logFile = Join-Path $Script:Config.RootPath "logs\agent_stdout.log"
+            if (Test-Path $logFile) {
+                $logContent = Get-Content $logFile -Raw -ErrorAction SilentlyContinue
+                if ($logContent -and ($logContent -match "Agent started" -or $logContent -match "WebSocket.*connected")) {
+                    Write-Log "✓ Agent initialization detected" -Level SUCCESS
+                    break
+                }
+            }
+        }
+        
+        # Step 9: Final verification
+        if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+            Write-Log "✓ Agent service started successfully (PID: $($process.Id))" -Level SUCCESS
+            Write-Log "Agent logs: logs\agent_stdout.log" -Level INFO
+            Write-Log "Error logs: logs\agent_stderr.log" -Level INFO
+            
+            # Step 10: Test basic functionality
+            Write-Log "Performing basic functionality test..." -Level INFO
+            Start-Sleep -Seconds 2
+            
+            # Check if agent created necessary files
+            $statusFile = Join-Path $Script:Config.RootPath "logs\agent.status"
+            $pidFile = Join-Path $Script:Config.RootPath "logs\agent.pid"
+            
+            # Create status files
+            Set-Content -Path $pidFile -Value $process.Id
+            Set-Content -Path $statusFile -Value "running"
+            
+            return $process
+        } else {
+            Write-Log "✗ Agent failed to start properly" -Level ERROR
+            return $null
+        }
+    }
+    catch {
+        Write-Log "Failed to start agent service: $($_.Exception.Message)" -Level ERROR
+        return $null
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Stop-AgentService {
+    Write-Log "Stopping RiskNoX Agent Service..." -Level INFO
+    
+    try {
+        $agentProcesses = Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object {
+            $_.ProcessName -eq "python" -and
+            (Get-WmiObject Win32_Process -Filter "ProcessId = $($_.Id)").CommandLine -like "*agent_main.py*"
+        }
+        
+        if ($agentProcesses) {
+            foreach ($process in $agentProcesses) {
+                Stop-Process -Id $process.Id -Force
+                Write-Log "✓ Stopped agent process (PID: $($process.Id))" -Level SUCCESS
+            }
+        } else {
+            Write-Log "No agent processes found running" -Level WARN
+        }
+    }
+    catch {
+        Write-Log "Failed to stop agent: $($_.Exception.Message)" -Level ERROR
+    }
+}
 
 # Professional Patch Management Setup Functions
 function Test-PatchManagementPrerequisites {
@@ -1414,6 +2127,153 @@ function Reset-PatchService {
     }
 }
 
+function Invoke-AgentServiceStart {
+    Write-Log "Starting RiskNoX Agent Service with full initialization..." -Level INFO
+    
+    try {
+        # Step 1: Initialize environment
+        if (-not (Initialize-AgentEnvironment)) {
+            Write-Log "Failed to initialize agent environment" -Level ERROR
+            return $null
+        }
+        
+        # Step 2: Test dependencies
+        if (-not (Test-AgentDependencies)) {
+            Write-Log "Agent dependencies not satisfied" -Level ERROR
+            return $null
+        }
+        
+        # Step 3: Check if agent is already running
+        $agentProcesses = Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object {
+            $_.ProcessName -eq "python" -and
+            (Get-WmiObject Win32_Process -Filter "ProcessId = $($_.Id)" -ErrorAction SilentlyContinue).CommandLine -like "*agent_main.py*"
+        }
+        
+        if ($agentProcesses) {
+            Write-Log "Agent is already running (PID: $($agentProcesses[0].Id))" -Level WARN
+            return $agentProcesses[0]
+        }
+        
+        # Step 4: Prepare startup
+        Push-Location $Script:Config.RootPath
+        
+        $venvPython = Join-Path $Script:Config.RootPath "$($Script:Config.VirtualEnvPath)\Scripts\python.exe"
+        $agentScript = Join-Path $Script:Config.RootPath "agent\agent_main.py"
+        
+        # Step 5: Initialize antivirus definitions
+        Write-Log "Checking antivirus definitions..." -Level INFO
+        $clamScanPath = Join-Path $Script:Config.RootPath "$($Script:Config.VendorPath)\clamscan.exe"
+        if (Test-Path $clamScanPath) {
+            $freshclamPath = Join-Path $Script:Config.RootPath "$($Script:Config.VendorPath)\freshclam.exe"
+            if (Test-Path $freshclamPath) {
+                Write-Log "Updating antivirus definitions..." -Level INFO
+                try {
+                    $updateProcess = Start-Process -FilePath $freshclamPath -ArgumentList "--quiet", "--no-warnings" -Wait -NoNewWindow -PassThru
+                    if ($updateProcess.ExitCode -eq 0) {
+                        Write-Log "✓ Antivirus definitions updated" -Level SUCCESS
+                    } else {
+                        Write-Log "⚠ Antivirus update completed with warnings" -Level WARN
+                    }
+                }
+                catch {
+                    Write-Log "⚠ Could not update antivirus definitions: $($_.Exception.Message)" -Level WARN
+                }
+            }
+        }
+        
+        # Step 6: Setup Windows Firewall rules
+        Write-Log "Configuring Windows Firewall..." -Level INFO
+        try {
+            $ruleName = "RiskNoX Agent Outbound"
+            $existingRule = Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
+            if (-not $existingRule) {
+                New-NetFirewallRule -DisplayName $ruleName -Direction Outbound -Protocol TCP -Action Allow -Profile Any -ErrorAction SilentlyContinue
+                Write-Log "✓ Firewall rule created" -Level SUCCESS
+            } else {
+                Write-Log "✓ Firewall rule already exists" -Level SUCCESS
+            }
+        }
+        catch {
+            Write-Log "⚠ Could not configure firewall (non-admin?): $($_.Exception.Message)" -Level WARN
+        }
+        
+        # Step 7: Start agent process
+        Write-Log "Starting agent process..." -Level INFO
+        $arguments = @($agentScript)
+        
+        # Add debug flag if needed
+        if ($env:RISKNOX_DEBUG -eq "1") {
+            $arguments += "--debug"
+        }
+        
+        $process = Start-Process -FilePath $venvPython -ArgumentList $arguments -NoNewWindow -PassThru -RedirectStandardOutput "logs\agent_stdout.log" -RedirectStandardError "logs\agent_stderr.log"
+        
+        # Step 8: Wait for agent to initialize
+        Write-Log "Waiting for agent to initialize..." -Level INFO
+        $maxWaitTime = 30
+        $waitTime = 0
+        
+        while ($waitTime -lt $maxWaitTime) {
+            Start-Sleep -Seconds 1
+            $waitTime++
+            
+            # Check if process is still running
+            if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
+                Write-Log "✗ Agent process terminated during startup" -Level ERROR
+                
+                # Show error logs
+                $errorLog = Join-Path $Script:Config.RootPath "logs\agent_stderr.log"
+                if (Test-Path $errorLog) {
+                    $errorContent = Get-Content $errorLog -Raw -ErrorAction SilentlyContinue
+                    if ($errorContent) {
+                        Write-Log "Agent error output: $errorContent" -Level ERROR
+                    }
+                }
+                return $null
+            }
+            
+            # Check if agent is responding (look for success indicators in logs)
+            $logFile = Join-Path $Script:Config.RootPath "logs\agent_stdout.log"
+            if (Test-Path $logFile) {
+                $logContent = Get-Content $logFile -Raw -ErrorAction SilentlyContinue
+                if ($logContent -and ($logContent -match "Agent started" -or $logContent -match "WebSocket.*connected")) {
+                    Write-Log "✓ Agent initialization detected" -Level SUCCESS
+                    break
+                }
+            }
+        }
+        
+        # Step 9: Final verification
+        if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+            Write-Log "✓ Agent service started successfully (PID: $($process.Id))" -Level SUCCESS
+            Write-Log "Agent logs: logs\agent_stdout.log" -Level INFO
+            Write-Log "Error logs: logs\agent_stderr.log" -Level INFO
+            
+            # Step 10: Test basic functionality
+            Write-Log "Performing basic functionality test..." -Level INFO
+            Start-Sleep -Seconds 2
+            
+            # Check if agent created necessary files
+            $statusFile = Join-Path $Script:Config.RootPath "logs\agent.status"
+            $pidFile = Join-Path $Script:Config.RootPath "logs\agent.pid"
+            
+            # Create status files
+            Set-Content -Path $pidFile -Value $process.Id
+            Set-Content -Path $statusFile -Value "running"
+            
+            return $process
+        } else {
+            Write-Log "✗ Agent failed to start properly" -Level ERROR
+            return $null
+        }
+    }
+    catch {
+        Write-Log "Failed to start agent service: $($_.Exception.Message)" -Level ERROR
+        return $null
+    }
+    finally {
+        Pop-Location
+    }
 }
 
 # Main execution
@@ -1427,6 +2287,79 @@ function Main {
     switch ($Action.ToLower()) {
         'start' {
             if (-not (Test-Dependencies)) { return }
+            
+            # Check if this is an agent-only setup
+            $agentConfigFile = Join-Path $Script:Config.RootPath "config\agent_info.json"
+            $agentScript = Join-Path $Script:Config.RootPath "agent\agent_main.py"
+            $agentMainConfig = Join-Path $Script:Config.RootPath "config\agent_config.xml"
+            
+            # If agent directory exists, treat as agent-only setup
+            if ((Test-Path $agentScript) -or (Test-Path $agentMainConfig)) {
+                Write-Log "═══════════════════════════════════════════════════════════" -Level INFO
+                Write-Log "        RiskNoX Security Agent - Starting Service" -Level INFO
+                Write-Log "═══════════════════════════════════════════════════════════" -Level INFO
+                
+                # Start comprehensive agent service
+                $agentProcess = Invoke-AgentServiceStart
+                if ($agentProcess) {
+                    Write-Log "✓ Agent service started successfully (PID: $($agentProcess.Id))" -Level SUCCESS
+                    
+                    # Check for manager enrollment
+                    if (Test-Path $agentConfigFile) {
+                        try {
+                            $agentInfo = Get-Content $agentConfigFile | ConvertFrom-Json
+                            if ($agentInfo.manager_url) {
+                                Write-Log "Testing connection to manager: $($agentInfo.manager_url)" -Level INFO
+                                
+                                # Test manager connectivity
+                                $connected = Test-ManagerConnection -ManagerUrl $agentInfo.manager_url
+                                if ($connected) {
+                                    Write-Log "✓ Manager connectivity verified" -Level SUCCESS
+                                    
+                                    # Auto-enroll if not already enrolled
+                                    if (-not $agentInfo.enrolled -or $agentInfo.enrolled -eq $false) {
+                                        Write-Log "Initiating automatic enrollment..." -Level INFO
+                                        $enrolled = Invoke-AgentEnrollment -ManagerUrl $agentInfo.manager_url
+                                        if ($enrolled) {
+                                            # Update agent info
+                                            $agentInfo.enrolled = $true
+                                            $agentInfo.enrollment_date = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+                                            $agentInfo | ConvertTo-Json -Depth 10 | Set-Content $agentConfigFile
+                                            Write-Log "✓ Agent enrolled with manager successfully" -Level SUCCESS
+                                        }
+                                    } else {
+                                        Write-Log "✓ Agent already enrolled with manager" -Level SUCCESS
+                                    }
+                                } else {
+                                    Write-Log "⚠ Manager not reachable - agent running in standalone mode" -Level WARN
+                                }
+                            }
+                        }
+                        catch {
+                            Write-Log "⚠ Could not process agent enrollment: $($_.Exception.Message)" -Level WARN
+                        }
+                    }
+                    
+                    # Show agent status
+                    Write-Log "═══════════════════════════════════════════════════════════" -Level INFO
+                    Write-Log "Agent Status Summary:" -Level INFO
+                    Write-Log "• Process ID: $($agentProcess.Id)" -Level INFO
+                    Write-Log "• Configuration: $(if (Test-Path $agentMainConfig) { 'Ready' } else { 'Default' })" -Level INFO
+                    Write-Log "• Antivirus: $(if (Test-Path (Join-Path $Script:Config.RootPath "$($Script:Config.VendorPath)\clamscan.exe")) { 'Available' } else { 'Not Available' })" -Level INFO
+                    Write-Log "• Manager Connection: $(if (Test-Path $agentConfigFile) { 'Configured' } else { 'Standalone' })" -Level INFO
+                    Write-Log "• Logs: logs\agent_stdout.log" -Level INFO
+                    Write-Log "═══════════════════════════════════════════════════════════" -Level INFO
+                    
+                    Write-Log "Agent is now running and monitoring system security." -Level SUCCESS
+                    Write-Log "Use 'RiskNoX-Control.ps1 -Action status' to check detailed status." -Level INFO
+                    Write-Log "Use 'RiskNoX-Control.ps1 -Action scan -Path C:\Users' to perform security scan." -Level INFO
+                    
+                } else {
+                    Write-Log "✗ Failed to start agent service" -Level ERROR
+                    Write-Log "Check logs\agent_stderr.log for error details" -Level ERROR
+                }
+                return
+            }
             
             # Check if patch management is set up
             $patchModulePath = "scripts\PatchManagement.ps1"
@@ -1452,6 +2385,16 @@ function Main {
         }
         
         'stop' {
+            # Check if this is an agent-only setup
+            $agentConfigFile = Join-Path $Script:Config.RootPath "config\agent_info.json"
+            $agentScript = Join-Path $Script:Config.RootPath "agent\agent_main.py"
+            
+            if ((Test-Path $agentConfigFile) -and (Test-Path $agentScript)) {
+                Write-Log "Detected agent configuration, stopping agent service..." -Level INFO
+                Stop-AgentService
+                return
+            }
+            
             Stop-Backend
         }
         
@@ -1519,6 +2462,27 @@ function Main {
         
         'patch-setup' {
             Invoke-PatchManagementSetup
+        }
+        
+        'test-connection' {
+            Test-ManagerConnection -ManagerUrl $ManagerUrl
+        }
+        
+        'enroll' {
+            Invoke-AgentEnrollment -ManagerUrl $ManagerUrl
+        }
+        
+        'agent-status' {
+            Get-AgentStatus
+        }
+        
+        'send-command' {
+            if (-not $Command) {
+                Write-Log "Command parameter is required for send-command action" -Level ERROR
+                Write-Log "Usage: .\RiskNoX-Control.ps1 -Action send-command -Command 'scan /temp'" -Level INFO
+                return
+            }
+            Send-AgentCommand -Command $Command -ManagerUrl $ManagerUrl
         }
         
         'help' {

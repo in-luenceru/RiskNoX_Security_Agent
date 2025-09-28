@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: manager
+      POSTGRES_USER: manager
+      POSTGRES_PASSWORD: dev_password_change_in_prod
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U manager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: dev_access_key
+      MINIO_ROOT_PASSWORD: dev_secret_key_change_in_prod
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  manager:
+    build: .
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://manager:dev_password_change_in_prod@postgres:5432/manager
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: dev_access_key
+      S3_SECRET_KEY: dev_secret_key_change_in_prod
+      S3_BUCKET: risknox-dev
+      JWT_SECRET_KEY: dev_jwt_secret_change_in_prod
+      LOG_LEVEL: DEBUG
+      PROMETHEUS_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:ro  # Development: mount source for hot reload
+    command: ["uvicorn", "src.manager_app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  celery:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://manager:dev_password_change_in_prod@postgres:5432/manager
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: dev_access_key
+      S3_SECRET_KEY: dev_secret_key_change_in_prod
+      S3_BUCKET: risknox-dev
+      LOG_LEVEL: DEBUG
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:ro
+    command: ["celery", "-A", "src.manager_app.tasks.celery_app", "worker", "--loglevel=info"]
+
+  celery-beat:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://manager:dev_password_change_in_prod@postgres:5432/manager
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      LOG_LEVEL: DEBUG
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:ro
+    command: ["celery", "-A", "src.manager_app.tasks.celery_app", "beat", "--loglevel=info"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+
+  admin-ui:
+    build: 
+      context: ./admin-ui
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - manager
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  grafana_data:

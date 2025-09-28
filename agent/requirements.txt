@@ -1,0 +1,26 @@
+# RiskNoX Agent Requirements
+
+# Core async/web libraries
+aiohttp>=3.8.0
+websockets>=11.0.0
+aiofiles>=23.0.0
+
+# Cryptography and security
+cryptography>=41.0.0
+pyjwt>=2.8.0
+
+# HTTP requests and validation
+requests>=2.31.0
+pydantic>=2.0.0
+
+# System monitoring and management
+psutil>=5.9.0
+wmi>=1.5.1; sys_platform == "win32"
+
+# Configuration and logging
+pyyaml>=6.0
+structlog>=23.0.0
+colorama>=0.4.6
+
+# Windows-specific for patch management
+pywin32>=306; sys_platform == "win32"

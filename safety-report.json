@@ -1,0 +1,422 @@
+
+
++===========================================================================================================================================================================================+
+
+
+DEPRECATED: this command (`check`) has been DEPRECATED, and will be unsupported beyond 01 June 2024.
+
+
+We highly encourage switching to the new `scan` command which is easier to use, more powerful, and can be set up to mimic the deprecated command if required.
+
+
++===========================================================================================================================================================================================+
+
+
+{
+    "report_meta": {
+        "scan_target": "files",
+        "scanned": [
+            "requirements.txt"
+        ],
+        "scanned_full_path": [
+            "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+        ],
+        "target_languages": [
+            "python"
+        ],
+        "policy_file": null,
+        "policy_file_source": "local",
+        "audit_and_monitor": false,
+        "api_key": false,
+        "account": "",
+        "local_database_path": null,
+        "safety_version": "3.6.2",
+        "timestamp": "2025-09-27 20:33:39",
+        "packages_found": 4,
+        "vulnerabilities_found": 5,
+        "vulnerabilities_ignored": 0,
+        "remediations_recommended": 0,
+        "telemetry": {
+            "safety_options": {
+                "files": {
+                    "-r": 1
+                },
+                "json": {
+                    "--json": 1
+                }
+            },
+            "safety_version": "3.6.2",
+            "safety_source": "cli",
+            "os_type": "Windows",
+            "os_release": "11",
+            "os_description": "Windows-11-10.0.26100-SP0",
+            "python_version": "3.13.5",
+            "safety_command": "check"
+        },
+        "git": {
+            "branch": "main",
+            "tag": "",
+            "commit": "188f9b7dd121ed507cd0ea99b9f57f915ef981d4",
+            "dirty": "False",
+            "origin": "https://github.com/in-luenceru/RiskNoX_Security_Agent.git"
+        },
+        "project": null,
+        "json_version": "1.1",
+        "remediations_attempted": 0,
+        "remediations_completed": 0,
+        "remediation_mode": "NON_INTERACTIVE"
+    },
+    "scanned_packages": {
+        "flask": {
+            "name": "flask",
+            "version": "3.0.0",
+            "requirements": [
+                {
+                    "raw": "flask==3.0.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "flask",
+                    "specifier": "==3.0.0",
+                    "url": null,
+                    "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+                }
+            ]
+        },
+        "flask-cors": {
+            "name": "flask-cors",
+            "version": "4.0.0",
+            "requirements": [
+                {
+                    "raw": "flask-cors==4.0.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "flask-cors",
+                    "specifier": "==4.0.0",
+                    "url": null,
+                    "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+                }
+            ]
+        },
+        "schedule": {
+            "name": "schedule",
+            "version": "1.2.0",
+            "requirements": [
+                {
+                    "raw": "schedule==1.2.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "schedule",
+                    "specifier": "==1.2.0",
+                    "url": null,
+                    "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+                }
+            ]
+        },
+        "psutil": {
+            "name": "psutil",
+            "version": "6.0.0",
+            "requirements": [
+                {
+                    "raw": "psutil==6.0.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "psutil",
+                    "specifier": "==6.0.0",
+                    "url": null,
+                    "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+                }
+            ]
+        }
+    },
+    "affected_packages": {
+        "flask-cors": {
+            "name": "flask-cors",
+            "version": "4.0.0",
+            "requirements": [
+                {
+                    "raw": "flask-cors==4.0.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "flask-cors",
+                    "specifier": "==4.0.0",
+                    "url": null,
+                    "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+                }
+            ],
+            "found": null,
+            "insecure_versions": [
+                "0.0.0.dev3",
+                "0.0.0.dev4",
+                "1.0",
+                "1.1",
+                "1.10.0",
+                "1.10.1",
+                "1.10.2",
+                "1.10.3",
+                "1.1.1",
+                "1.1.2",
+                "1.1.3",
+                "1.2.0",
+                "1.2.1",
+                "1.3.0",
+                "1.3.1",
+                "1.4.0",
+                "1.5.0",
+                "1.6.0",
+                "1.6.1",
+                "1.7.0",
+                "1.7.1",
+                "1.7.2",
+                "1.7.3",
+                "1.7.4",
+                "1.8.0",
+                "1.8.1",
+                "1.9.0",
+                "2.0.0",
+                "2.0.0rc1",
+                "2.0.1",
+                "2.1.0",
+                "2.1.1",
+                "2.1.2",
+                "2.1.3",
+                "3.0.0",
+                "3.0.1",
+                "3.0.10",
+                "3.0.2",
+                "3.0.3",
+                "3.0.4",
+                "3.0.6",
+                "3.0.7",
+                "3.0.8",
+                "3.0.9",
+                "4.0.0",
+                "4.0.0a0",
+                "4.0.1"
+            ],
+            "secure_versions": [
+                "6.0.1",
+                "6.0.1.dev0",
+                "6.0.0",
+                "5.0.1",
+                "5.0.0",
+                "4.0.2"
+            ],
+            "latest_version_without_known_vulnerabilities": "6.0.1",
+            "latest_version": "6.0.1",
+            "more_info_url": "https://data.safetycli.com/p/pypi/flask-cors/97c/"
+        }
+    },
+    "announcements": [],
+    "vulnerabilities": [
+        {
+            "vulnerability_id": "72731",
+            "package_name": "flask-cors",
+            "ignored": {},
+            "ignored_reason": null,
+            "ignored_expires": null,
+            "vulnerable_spec": [
+                "<4.0.2"
+            ],
+            "all_vulnerable_specs": [
+                "<4.0.2"
+            ],
+            "analyzed_version": "4.0.0",
+            "analyzed_requirement": {
+                "raw": "flask-cors==4.0.0",
+                "extras": [],
+                "marker": null,
+                "name": "flask-cors",
+                "specifier": "==4.0.0",
+                "url": null,
+                "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+            },
+            "advisory": "A vulnerability in corydolphin/flask-cors version 4.0.1 allows the `Access-Control-Allow-Private-Network` CORS header to be set to true by default. This behavior can expose private network resources to unauthorized external access, leading to significant security risks such as data breaches, unauthorized access to sensitive information, and potential network intrusions.",
+            "is_transitive": false,
+            "published_date": null,
+            "fixed_versions": [],
+            "closest_versions_without_known_vulnerabilities": [],
+            "resources": [],
+            "CVE": "CVE-2024-6221",
+            "severity": null,
+            "affected_versions": [],
+            "more_info_url": "https://data.safetycli.com/v/72731/97c"
+        },
+        {
+            "vulnerability_id": "76242",
+            "package_name": "flask-cors",
+            "ignored": {},
+            "ignored_reason": null,
+            "ignored_expires": null,
+            "vulnerable_spec": [
+                "<4.0.1"
+            ],
+            "all_vulnerable_specs": [
+                "<4.0.1"
+            ],
+            "analyzed_version": "4.0.0",
+            "analyzed_requirement": {
+                "raw": "flask-cors==4.0.0",
+                "extras": [],
+                "marker": null,
+                "name": "flask-cors",
+                "specifier": "==4.0.0",
+                "url": null,
+                "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+            },
+            "advisory": "Affected versions of the flask-cors package are vulnerable to Improper Input Validation due to inconsistent URL path handling when processing the '+' character. The package incorrectly uses the unquote_plus function on request.path, which converts '+' characters to spaces, resulting in path normalization errors that prevent proper CORS policy matching for endpoints containing '+' symbols. An attacker can exploit this vulnerability by accessing endpoints with '+' characters in their paths to bypass intended CORS restrictions or cause legitimate cross-origin requests to be incorrectly blocked, potentially exposing sensitive data to unauthorized origins or disrupting application functionality.",
+            "is_transitive": false,
+            "published_date": null,
+            "fixed_versions": [],
+            "closest_versions_without_known_vulnerabilities": [],
+            "resources": [],
+            "CVE": "CVE-2024-6844",
+            "severity": null,
+            "affected_versions": [],
+            "more_info_url": "https://data.safetycli.com/v/76242/97c"
+        },
+        {
+            "vulnerability_id": "76241",
+            "package_name": "flask-cors",
+            "ignored": {},
+            "ignored_reason": null,
+            "ignored_expires": null,
+            "vulnerable_spec": [
+                "<4.0.1"
+            ],
+            "all_vulnerable_specs": [
+                "<4.0.1"
+            ],
+            "analyzed_version": "4.0.0",
+            "analyzed_requirement": {
+                "raw": "flask-cors==4.0.0",
+                "extras": [],
+                "marker": null,
+                "name": "flask-cors",
+                "specifier": "==4.0.0",
+                "url": null,
+                "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+            },
+            "advisory": "Affected versions of the flask-cors package are vulnerable to Improper Input Validation due to flawed regex pattern prioritization in path matching logic. The package incorrectly prioritizes longer regex patterns over more specific ones when determining CORS policies for endpoints, causing less restrictive CORS configurations to be applied to sensitive paths that should have stricter access controls. An attacker can exploit this vulnerability by making cross-origin requests to sensitive endpoints that inadvertently match broader regex patterns, bypassing intended CORS restrictions and potentially accessing confidential data or executing unauthorized actions from untrusted origins.",
+            "is_transitive": false,
+            "published_date": null,
+            "fixed_versions": [],
+            "closest_versions_without_known_vulnerabilities": [],
+            "resources": [],
+            "CVE": "CVE-2024-6839",
+            "severity": null,
+            "affected_versions": [],
+            "more_info_url": "https://data.safetycli.com/v/76241/97c"
+        },
+        {
+            "vulnerability_id": "76237",
+            "package_name": "flask-cors",
+            "ignored": {},
+            "ignored_reason": null,
+            "ignored_expires": null,
+            "vulnerable_spec": [
+                "<4.0.1"
+            ],
+            "all_vulnerable_specs": [
+                "<4.0.1"
+            ],
+            "analyzed_version": "4.0.0",
+            "analyzed_requirement": {
+                "raw": "flask-cors==4.0.0",
+                "extras": [],
+                "marker": null,
+                "name": "flask-cors",
+                "specifier": "==4.0.0",
+                "url": null,
+                "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+            },
+            "advisory": "Affected versions of the flask\u2011cors package are vulnerable to Improper Handling of Case Sensitivity due to case\u2011insensitive request path matching caused by using the try_match function, originally intended for hostnames. The cors_after_request logic applies unquote_plus to request.path and then uses try_match_pattern with caseSensitive=True only in patched versions, whereas the vulnerable behaviour uses try_match (case\u2011insensitive), resulting in mismatches between the intended case\u2011sensitive URL paths and the CORS matching. An attacker can exploit this by crafting requests with differently cased path segments that bypass restrictions on sensitive endpoints, enabling unauthorized cross\u2011origin access and potential data exposure.",
+            "is_transitive": false,
+            "published_date": null,
+            "fixed_versions": [],
+            "closest_versions_without_known_vulnerabilities": [],
+            "resources": [],
+            "CVE": "CVE-2024-6866",
+            "severity": null,
+            "affected_versions": [],
+            "more_info_url": "https://data.safetycli.com/v/76237/97c"
+        },
+        {
+            "vulnerability_id": "70624",
+            "package_name": "flask-cors",
+            "ignored": {},
+            "ignored_reason": null,
+            "ignored_expires": null,
+            "vulnerable_spec": [
+                "<4.0.1"
+            ],
+            "all_vulnerable_specs": [
+                "<4.0.1"
+            ],
+            "analyzed_version": "4.0.0",
+            "analyzed_requirement": {
+                "raw": "flask-cors==4.0.0",
+                "extras": [],
+                "marker": null,
+                "name": "flask-cors",
+                "specifier": "==4.0.0",
+                "url": null,
+                "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+            },
+            "advisory": "Affected versions of the flask-cors package are vulnerable to Improper Output Neutralization for Logs due to unsanitized request path values being written to the debug logger. In flask_cors.extension.CORS, request.path is logged via LOG.debug without normalizing or escaping CRLF characters when DEBUG logging is enabled, as evidenced by the logging site in extension.py and the fix that cleans request.path before logging.",
+            "is_transitive": false,
+            "published_date": null,
+            "fixed_versions": [],
+            "closest_versions_without_known_vulnerabilities": [],
+            "resources": [],
+            "CVE": "CVE-2024-1681",
+            "severity": null,
+            "affected_versions": [],
+            "more_info_url": "https://data.safetycli.com/v/70624/97c"
+        }
+    ],
+    "ignored_vulnerabilities": [],
+    "remediations": {
+        "flask-cors": {
+            "requirements": {
+                "==4.0.0": {
+                    "vulnerabilities_found": 5,
+                    "version": "4.0.0",
+                    "requirement": {
+                        "raw": "flask-cors==4.0.0",
+                        "extras": [],
+                        "marker": null,
+                        "name": "flask-cors",
+                        "specifier": "==4.0.0",
+                        "url": null,
+                        "found": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\requirements.txt"
+                    },
+                    "more_info_url": "https://data.safetycli.com/p/pypi/flask-cors/97c/"
+                }
+            },
+            "current_version": null,
+            "vulnerabilities_found": null,
+            "recommended_version": null,
+            "other_recommended_versions": [],
+            "more_info_url": null
+        }
+    },
+    "remediations_results": {
+        "vulnerabilities_fixed": [],
+        "remediations_applied": {},
+        "remediations_skipped": {}
+    }
+}
+
+
++===========================================================================================================================================================================================+
+
+
+DEPRECATED: this command (`check`) has been DEPRECATED, and will be unsupported beyond 01 June 2024.
+
+
+We highly encourage switching to the new `scan` command which is easier to use, more powerful, and can be set up to mimic the deprecated command if required.
+
+
++===========================================================================================================================================================================================+
+
+
