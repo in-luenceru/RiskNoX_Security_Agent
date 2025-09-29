@@ -8,6 +8,9 @@
     "@types/node": "^20.8.10",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
+    "@tailwindcss/forms": "^0.5.7",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
     "axios": "^1.6.1",
     "lucide-react": "^0.292.0",
     "react": "^18.2.0",
@@ -45,9 +48,6 @@
     ]
   },
   "devDependencies": {
-    "@tailwindcss/forms": "^0.5.7",
-    "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.32"
   },
   "proxy": "http://localhost:8001"
 }
