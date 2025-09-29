@@ -18,7 +18,7 @@ from starlette.responses import Response, FileResponse
 import structlog
 import os
 
-from .api import health, enroll, agents, commands, ui
+from .api import health, enroll, agents, commands, ui, agent_actions
 try:
     from .api import schedules, patches, events, scans, web_blocking
 except ImportError:
@@ -217,6 +217,7 @@ app.include_router(enroll.router, prefix="/api/v1")
 app.include_router(agents.router, prefix="/api/v1")
 app.include_router(commands.router, prefix="/api/v1")
 app.include_router(ui.router, prefix="/api/v1")
+app.include_router(agent_actions.router)  # No prefix - matches agent UI exactly
 
 # Include WebSocket router
 app.include_router(ws_router)

@@ -114,22 +114,24 @@ export const commandApi = {
   // Run scan on agent
   runScan: async (agentId: string, scanType: 'quick' | 'full'): Promise<any> => {
     try {
-      const response = await apiClient.post('/api/v1/commands/scan', {
-        agent_ids: [agentId],
-        scan_type: scanType,
-        targets: [],
-        priority: 1
-      });
+      // Map scan types to the agent action format
+      const scanData = {
+        path: scanType === 'full' ? 'SYSTEM_SCAN' : 'QUICK_SYSTEM_SCAN',
+        scan_type: scanType === 'full' ? 'system' : 'quick_system',
+        agent_id: agentId
+      };
+      
+      const response = await apiClient.post('/api/antivirus/scan', scanData);
       return response.data;
     } catch (error) {
       // Fallback to generic command creation
-      console.warn('Scan endpoint not available, using generic command creation');
+      console.warn('Agent action scan endpoint not available, using generic command creation');
       return commandApi.createCommand({
         agent_id: agentId,
         command_type: 'scan',
         command_data: {
           scan_type: scanType,
-          path: scanType === 'full' ? 'C:\\' : undefined
+          path: scanType === 'full' ? 'SYSTEM_SCAN' : 'QUICK_SYSTEM_SCAN'
         },
         priority: 'high'
       });
@@ -139,16 +141,27 @@ export const commandApi = {
   // Run scan on multiple agents
   runScanMultiple: async (agentIds: string[], scanType: 'quick' | 'full', path?: string): Promise<any> => {
     try {
-      const response = await apiClient.post('/api/v1/commands/scan', {
-        agent_ids: agentIds,
-        scan_type: scanType,
-        targets: path ? [path] : [],
-        priority: 1
-      });
-      return response.data;
+      // Run scans on multiple agents individually using the agent action endpoint
+      const results = await Promise.all(
+        agentIds.map(async agentId => {
+          const scanData = {
+            path: path || (scanType === 'full' ? 'SYSTEM_SCAN' : 'QUICK_SYSTEM_SCAN'),
+            scan_type: path ? 'directory' : (scanType === 'full' ? 'system' : 'quick_system'),
+            agent_id: agentId
+          };
+          
+          try {
+            const response = await apiClient.post('/api/antivirus/scan', scanData);
+            return { agent_id: agentId, success: true, data: response.data };
+          } catch (error) {
+            return { agent_id: agentId, success: false, error: error };
+          }
+        })
+      );
+      return { results };
     } catch (error) {
       // Fallback to creating individual commands
-      console.warn('Bulk scan endpoint not available, creating individual commands');
+      console.warn('Agent action bulk scan not available, creating individual commands');
       const commands = await Promise.all(
         agentIds.map(agentId => 
           commandApi.createCommand({
@@ -156,7 +169,7 @@ export const commandApi = {
             command_type: 'scan',
             command_data: {
               scan_type: scanType,
-              path: path || (scanType === 'full' ? 'C:\\' : undefined)
+              path: path || (scanType === 'full' ? 'SYSTEM_SCAN' : 'QUICK_SYSTEM_SCAN')
             },
             priority: 'high'
           })
@@ -168,35 +181,109 @@ export const commandApi = {
 
   // Trigger patch management
   runPatchCommand: async (agentIds: string[], action: 'install' | 'check' | 'rollback', patchIds: string[] = []): Promise<any> => {
-    const response = await apiClient.post('/api/v1/commands/patch', {
-      agent_ids: agentIds,
-      action: action,
-      patch_ids: patchIds,
-      options: {
-        auto_reboot: false,
-        backup_before_install: true,
-        rollback_on_failure: true
-      },
-      priority: 2
-    });
-    return response.data;
+    try {
+      if (action === 'install' && patchIds.length > 0) {
+        // Use the new agent action endpoint for patch installation
+        const results = await Promise.all(
+          agentIds.map(async agentId => {
+            const data = { patch_ids: patchIds, agent_id: agentId };
+            
+            try {
+              const response = await apiClient.post('/api/patch-management/install', data);
+              return { agent_id: agentId, success: true, data: response.data };
+            } catch (error) {
+              return { agent_id: agentId, success: false, error: error };
+            }
+          })
+        );
+        return { results };
+      } else {
+        // For check and rollback, fall back to generic commands for now
+        const response = await apiClient.post('/api/v1/commands/patch', {
+          agent_ids: agentIds,
+          action: action,
+          patch_ids: patchIds,
+          options: {
+            auto_reboot: false,
+            backup_before_install: true,
+            rollback_on_failure: true
+          },
+          priority: 2
+        });
+        return response.data;
+      }
+    } catch (error) {
+      // Fallback to generic command creation
+      console.warn('Agent action patch management not available, using generic commands');
+      const response = await apiClient.post('/api/v1/commands/patch', {
+        agent_ids: agentIds,
+        action: action,
+        patch_ids: patchIds,
+        options: {
+          auto_reboot: false,
+          backup_before_install: true,
+          rollback_on_failure: true
+        },
+        priority: 2
+      });
+      return response.data;
+    }
   },
 
   // Trigger web blocking
   runWebBlockCommand: async (agentIds: string[], action: 'block' | 'unblock', urls: string[]): Promise<any> => {
-    const response = await apiClient.post('/api/v1/commands/web-block', {
-      agent_ids: agentIds,
-      action: action,
-      urls: urls,
-      priority: 5
-    });
-    return response.data;
+    try {
+      // Use the new agent action endpoints for web blocking
+      const results = await Promise.all(
+        urls.flatMap(url => 
+          agentIds.map(async agentId => {
+            const endpoint = action === 'block' ? '/api/web-blocking/block' : '/api/web-blocking/unblock';
+            const data = { url, agent_id: agentId };
+            
+            try {
+              const response = await apiClient.post(endpoint, data);
+              return { agent_id: agentId, url, success: true, data: response.data };
+            } catch (error) {
+              return { agent_id: agentId, url, success: false, error: error };
+            }
+          })
+        )
+      );
+      return { results };
+    } catch (error) {
+      // Fallback to generic command creation
+      console.warn('Agent action web blocking not available, using generic commands');
+      const response = await apiClient.post('/api/v1/commands/web-block', {
+        agent_ids: agentIds,
+        action: action,
+        urls: urls,
+        priority: 5
+      });
+      return response.data;
+    }
   },
 
   // Get system info
   runSystemInfoCommand: async (agentIds: string[]): Promise<any> => {
-    const response = await apiClient.post('/api/v1/commands/system-info', agentIds);
-    return response.data;
+    try {
+      // Use the new agent action endpoint for system status
+      const results = await Promise.all(
+        agentIds.map(async agentId => {
+          try {
+            const response = await apiClient.get(`/api/system/status?agent_id=${agentId}`);
+            return { agent_id: agentId, success: true, data: response.data };
+          } catch (error) {
+            return { agent_id: agentId, success: false, error: error };
+          }
+        })
+      );
+      return { results };
+    } catch (error) {
+      // Fallback to generic command creation
+      console.warn('Agent action system info not available, using generic commands');
+      const response = await apiClient.post('/api/v1/commands/system-info', agentIds);
+      return response.data;
+    }
   },
 };
 
@@ -209,8 +296,41 @@ export const scanApi = {
     agent_id?: string;
     status?: string;
   }): Promise<PaginatedResponse<any>> => {
-    const response = await apiClient.get('/api/v1/scans', { params });
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/scans', { params });
+      return response.data;
+    } catch (error) {
+      console.warn('Scans API not available, returning empty results');
+      return {
+        items: [],
+        total: 0,
+        page: params?.page || 1,
+        per_page: params?.per_page || 20,
+        pages: 0
+      };
+    }
+  },
+
+  // Get scan status for a specific session
+  getScanStatus: async (sessionId: string): Promise<any> => {
+    try {
+      const response = await apiClient.get(`/api/antivirus/status/${sessionId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch scan status:', error);
+      return { success: false, session: {} };
+    }
+  },
+
+  // Get scan progress for a specific session
+  getScanProgress: async (sessionId: string): Promise<any> => {
+    try {
+      const response = await apiClient.get(`/api/antivirus/scan-progress/${sessionId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch scan progress:', error);
+      return { success: false, progress: {} };
+    }
   },
 
   // Get scan logs
@@ -227,32 +347,95 @@ export const scanApi = {
 
 // Web Blocking API
 export const webBlockingApi = {
-  // Get blocked URLs
+  // Get blocked URLs from agents
   getBlockedUrls: async (params?: {
     page?: number;
     per_page?: number;
     category?: string;
   }): Promise<PaginatedResponse<any>> => {
-    const response = await apiClient.get('/api/v1/web-blocking/urls', { params });
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/web-blocking/urls', { params });
+      
+      // Transform the response to match the expected paginated format
+      if (response.data && response.data.urls) {
+        return {
+          items: response.data.urls,
+          total: response.data.total || response.data.urls.length,
+          page: params?.page || 1,
+          per_page: params?.per_page || 20,
+          pages: Math.ceil((response.data.total || response.data.urls.length) / (params?.per_page || 20))
+        };
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.warn('Web blocking API not available, using fallback');
+      return {
+        items: [],
+        total: 0,
+        page: params?.page || 1,
+        per_page: params?.per_page || 20,
+        pages: 0
+      };
+    }
   },
 
-  // Add blocked URL
+  // Add blocked URL to agents
   addBlockedUrl: async (data: {
     url: string;
-    category: string;
+    category?: string;
     agent_ids: string[];
   }): Promise<any> => {
-    const response = await apiClient.post('/api/v1/web-blocking/urls', data);
-    return response.data;
+    try {
+      // Block URL on each specified agent
+      const results = await Promise.all(
+        data.agent_ids.map(async agentId => {
+          try {
+            const response = await apiClient.post('/api/web-blocking/block', {
+              url: data.url,
+              agent_id: agentId
+            });
+            return { agent_id: agentId, success: true, data: response.data };
+          } catch (error) {
+            return { agent_id: agentId, success: false, error: error };
+          }
+        })
+      );
+      return { results };
+    } catch (error) {
+      // Fallback to old API
+      console.warn('Agent action web blocking not available, using fallback');
+      const response = await apiClient.post('/api/v1/web-blocking/urls', data);
+      return response.data;
+    }
   },
 
-  // Remove blocked URL
-  removeBlockedUrl: async (urlId: string, agentIds: string[]): Promise<any> => {
-    const response = await apiClient.delete(`/api/v1/web-blocking/urls/${urlId}`, {
-      data: { agent_ids: agentIds }
-    });
-    return response.data;
+  // Remove blocked URL from agents
+  removeBlockedUrl: async (url: string, agentIds: string[]): Promise<any> => {
+    try {
+      // Unblock URL on each specified agent
+      const results = await Promise.all(
+        agentIds.map(async agentId => {
+          try {
+            const response = await apiClient.post('/api/web-blocking/unblock', {
+              url: url,
+              agent_id: agentId
+            });
+            return { agent_id: agentId, success: true, data: response.data };
+          } catch (error) {
+            return { agent_id: agentId, success: false, error: error };
+          }
+        })
+      );
+      return { results };
+    } catch (error) {
+      // Fallback to old API
+      console.warn('Agent action web unblocking not available, using fallback');
+      const response = await apiClient.delete(`/api/v1/web-blocking/urls/${encodeURIComponent(url)}`, {
+        data: { agent_ids: agentIds }
+      });
+      return response.data;
+    }
   },
 };
 
@@ -363,6 +546,26 @@ export const patchApi = {
         page: params?.page || 1,
         per_page: params?.per_page || 20,
         pages: 1
+      };
+    }
+  },
+
+  // Get patch management info from agents
+  getPatchInfo: async (agentId?: string): Promise<any> => {
+    try {
+      const url = agentId 
+        ? `/api/patch-management/info?agent_id=${agentId}`
+        : '/api/patch-management/info';
+      const response = await apiClient.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch patch info:', error);
+      return {
+        success: false,
+        pending_count: 0,
+        installed_patches: [],
+        pending_updates: [],
+        update_history: []
       };
     }
   },
