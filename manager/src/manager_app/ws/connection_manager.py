@@ -338,14 +338,47 @@ class ConnectionManager:
             from ..socketio_server import sio
             scan_id = message.get("scan_id")
             log_line = message.get("log_line")
+            progress = message.get("progress", 0)
+            files_scanned = message.get("files_scanned", 0)
+            threats_found = message.get("threats_found", 0)
             
             if scan_id and log_line:
+                # Broadcast to UI
                 await sio.emit('scan_logs', {
                     'scan_id': scan_id,
                     'agent_id': agent_id,
                     'log_line': log_line,
+                    'progress': progress,
+                    'files_scanned': files_scanned,
+                    'threats_found': threats_found,
                     'timestamp': message.get("timestamp", datetime.utcnow().isoformat())
                 })
+                
+                # Update command result with progress
+                if progress > 0 or files_scanned > 0:
+                    from ..db.crud import get_command_by_id, update_command_result
+                    from ..db.database import get_db_session
+                    
+                    # Update scan progress in database
+                    try:
+                        async with get_db_session() as db:
+                            command = await get_command_by_id(db, scan_id)
+                            if command and command.command_type == "scan":
+                                current_result = command.result or {}
+                                current_result.update({
+                                    "progress": progress,
+                                    "files_scanned": files_scanned,
+                                    "threats_found": threats_found,
+                                    "last_update": datetime.utcnow().isoformat()
+                                })
+                                
+                                await update_command_result(
+                                    db, scan_id, 
+                                    "running" if progress < 100 else "completed",
+                                    current_result
+                                )
+                    except Exception as db_error:
+                        logger.warning("Failed to update scan progress in DB", error=str(db_error))
                 
                 logger.debug("Scan log broadcasted", scan_id=scan_id, agent_id=agent_id)
         except Exception as e:

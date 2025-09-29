@@ -3,17 +3,27 @@ Scan management endpoints
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 import structlog
+import uuid
 
 from ..db.database import get_db_session
-from ..db.crud import get_commands_by_type
+from ..db.crud import get_commands_by_type, create_command, get_agent_by_id
 
 router = APIRouter(tags=["scans"])
 logger = structlog.get_logger()
+
+
+class ScanRequest(BaseModel):
+    """Scan request model"""
+    agent_ids: List[str] = Field(..., description="List of agent IDs to scan")
+    scan_type: str = Field(..., description="Type of scan: quick, full, custom")
+    path: Optional[str] = Field(None, description="Scan path for custom scans")
+    options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional scan options")
+    schedule: Optional[str] = Field(None, description="Cron expression for scheduled scans")
 
 
 class ScanResult(BaseModel):
@@ -41,6 +51,101 @@ class ScanResultsResponse(BaseModel):
     page: int
     per_page: int
     pages: int
+
+
+@router.post("/scans/trigger")
+async def trigger_scan(
+    scan_request: ScanRequest,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Trigger antivirus scan on specified agents
+    
+    Sends scan commands to the specified agents and returns scan IDs
+    for tracking progress and results.
+    """
+    try:
+        from ..ws.connection_manager import connection_manager
+        from ..security.signer import sign_message
+        
+        scan_commands = []
+        failed_agents = []
+        
+        for agent_id in scan_request.agent_ids:
+            try:
+                # Check if agent exists and is connected
+                agent = await get_agent_by_id(db, agent_id)
+                if not agent:
+                    failed_agents.append({"agent_id": agent_id, "error": "Agent not found"})
+                    continue
+                
+                # Check if agent is online
+                is_online = agent_id in connection_manager.agent_connections
+                if not is_online:
+                    failed_agents.append({"agent_id": agent_id, "error": "Agent offline"})
+                    continue
+                
+                # Create scan command
+                command_payload = {
+                    "scan_type": scan_request.scan_type,
+                    "targets": [scan_request.path] if scan_request.path else [],
+                    "options": scan_request.options
+                }
+                
+                # Create command in database
+                expires_at = datetime.utcnow() + timedelta(hours=24)  # 24 hour expiry
+                command = await create_command(
+                    db=db,
+                    agent_id=agent_id,
+                    command_type="scan",
+                    payload=command_payload,
+                    signature="",  # Will be signed before sending
+                    created_by="admin",  # TODO: Get from auth context
+                    expires_at=expires_at,
+                    priority=3  # High priority for scans
+                )
+                
+                # Send command to agent via WebSocket
+                command_message = {
+                    "type": "command",
+                    "command_id": command.command_id,
+                    "command_type": "scan",
+                    "payload": command_payload,
+                    "expires_at": expires_at.isoformat()
+                }
+                
+                success = await connection_manager.send_command(agent_id, command_message)
+                if success:
+                    scan_commands.append({
+                        "scan_id": command.command_id,
+                        "agent_id": agent_id,
+                        "status": "pending"
+                    })
+                    # Update command status to sent
+                    from ..db.crud import update_command_status
+                    await update_command_status(db, command.command_id, "sent")
+                else:
+                    failed_agents.append({"agent_id": agent_id, "error": "Failed to send command"})
+                    
+            except Exception as e:
+                logger.error("Failed to create scan command", agent_id=agent_id, error=str(e))
+                failed_agents.append({"agent_id": agent_id, "error": str(e)})
+        
+        return {
+            "success": len(scan_commands) > 0,
+            "message": f"Scan triggered on {len(scan_commands)} agents",
+            "scan_commands": scan_commands,
+            "failed_agents": failed_agents,
+            "total_agents": len(scan_request.agent_ids),
+            "successful_agents": len(scan_commands)
+        }
+        
+    except Exception as e:
+        logger.error("Failed to trigger scan", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to trigger scan"
+        )
 
 
 @router.get("/scans", response_model=ScanResultsResponse)
@@ -191,25 +296,46 @@ async def get_scan_logs(
         result = command.result or {}
         logs = result.get("execution_logs", [])
         
-        # Add real-time status information
-        if command.status == "running" or command.status == "sent":
-            logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] Scan in progress...")
-            logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] Files scanned: {result.get('files_scanned', 0)}")
-            logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] Threats found: {result.get('threats_found', 0)}")
+        # Add real-time status information if scan is active
+        from ..ws.connection_manager import connection_manager
+        agent_id = command.agent.agent_id if command.agent else None
+        is_agent_online = agent_id in connection_manager.agent_connections if agent_id else False
+        
+        if command.status in ["running", "sent", "acknowledged"] and is_agent_online:
+            # Add live status logs
+            current_time = datetime.now().strftime('%H:%M:%S')
+            if not logs:
+                logs = []
+            
+            logs.extend([
+                f"[{current_time}] Scan in progress on {command.agent.hostname if command.agent else 'unknown'}...",
+                f"[{current_time}] Files scanned: {result.get('files_scanned', 0)}",
+                f"[{current_time}] Threats found: {result.get('threats_found', 0)}",
+                f"[{current_time}] Progress: {result.get('progress', 0)}%"
+            ])
         elif command.status == "completed":
             if not logs:
                 logs = [
                     "Scan completed successfully",
                     f"Total files scanned: {result.get('files_scanned', 0)}",
-                    f"Threats found: {result.get('threats_found', 0)}"
+                    f"Threats found: {result.get('threats_found', 0)}",
+                    f"Scan duration: {result.get('duration', 'Unknown')}"
                 ]
         elif command.status == "failed":
-            logs.append(f"Scan failed: {command.error_message or 'Unknown error'}")
+            if not logs:
+                logs = [f"Scan failed: {command.error_message or 'Unknown error'}"]
+        elif command.status == "pending":
+            logs = ["Scan queued and waiting to start..."]
         
         return {
             "scan_id": scan_id,
             "logs": logs,
             "status": command.status,
+            "agent_id": agent_id,
+            "agent_online": is_agent_online,
+            "progress": result.get("progress", 0),
+            "files_scanned": result.get("files_scanned", 0),
+            "threats_found": result.get("threats_found", 0),
             "timestamp": datetime.utcnow().isoformat()
         }
         
@@ -220,6 +346,63 @@ async def get_scan_logs(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve scan logs"
+        )
+
+
+@router.post("/scans/{scan_id}/cancel")
+async def cancel_scan(
+    scan_id: str,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Cancel a running scan
+    
+    Sends cancel command to the agent and updates scan status.
+    """
+    try:
+        from ..db.crud import get_command_by_id, update_command_status
+        from ..ws.connection_manager import connection_manager
+        
+        command = await get_command_by_id(db, scan_id)
+        if not command or command.command_type != "scan":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Scan {scan_id} not found"
+            )
+        
+        if command.status not in ["pending", "sent", "acknowledged", "running"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot cancel scan with status: {command.status}"
+            )
+        
+        agent_id = command.agent.agent_id if command.agent else None
+        if agent_id and agent_id in connection_manager.agent_connections:
+            # Send cancel command to agent
+            cancel_message = {
+                "type": "cancel_command",
+                "command_id": scan_id,
+                "reason": "user_requested"
+            }
+            
+            await connection_manager.send_command(agent_id, cancel_message)
+        
+        # Update command status
+        await update_command_status(db, scan_id, "cancelled", error_message="Cancelled by user")
+        
+        return {
+            "success": True,
+            "message": f"Scan {scan_id} cancelled successfully",
+            "scan_id": scan_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to cancel scan", scan_id=scan_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to cancel scan"
         )
 
 

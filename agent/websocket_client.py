@@ -57,7 +57,7 @@ class AgentWebSocketClient:
         
         # Components
         self.enrollment = AgentEnrollment(self.manager_url.replace("wss://", "https://").replace("ws://", "http://"))
-        self.command_handler = CommandHandler()
+        self.command_handler = CommandHandler(websocket_client=self)
         self.cert_manager = CertificateManager(config.get("cert_dir", "./certs"))
         
         # Connection state
@@ -284,6 +284,9 @@ class AgentWebSocketClient:
         command_type = data.get("command_type")
         payload = data.get("payload", {})
         
+        # Add command_id to payload for tracking
+        payload["command_id"] = command_id
+        
         logger.info("Received command", 
                    command_id=command_id, 
                    command_type=command_type)
@@ -302,17 +305,6 @@ class AgentWebSocketClient:
             }
             
             await self._send_message(response)
-            
-            # If this was a scan command, also send scan logs for real-time updates
-            if command_type == "scan" and result.get("execution_logs"):
-                for log_line in result["execution_logs"]:
-                    log_message = {
-                        "type": "scan_logs",
-                        "scan_id": command_id,
-                        "log_line": log_line,
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                    await self._send_message(log_message)
             
             logger.info("Command executed successfully", 
                        command_id=command_id, 

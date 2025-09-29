@@ -302,23 +302,47 @@ async def get_agent_ui_format(
     db: AsyncSession = Depends(get_db_session)
 ):
     """Get single agent in UI-compatible format"""
-    # Return sample data for now
-    if agent_id == "agent_1":
+    try:
+        agent = await get_agent_by_id(db, agent_id)
+        if not agent:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Agent {agent_id} not found"
+            )
+        
+        # Determine real-time status
+        from ..ws.connection_manager import connection_manager
+        is_ws_connected = agent.agent_id in connection_manager.agent_connections
+        agent_status = "online" if is_ws_connected else "offline"
+        
+        # Override with error status if agent has issues
+        if agent.status in ["error", "failed", "revoked"]:
+            agent_status = "error"
+        
+        # Get last scan from commands
+        from ..db.crud import get_latest_command_by_type
+        last_scan_command = await get_latest_command_by_type(db, agent_id, "scan")
+        last_scan = last_scan_command.completed_at.isoformat() if last_scan_command and last_scan_command.completed_at else None
+        
         return UIAgentResponse(
-            id="agent_1",
-            hostname="WIN-SERVER-01",
-            ip_address="192.168.1.100",
-            status="online",
-            last_seen="2025-09-27T21:00:00Z",
-            os_info="Windows Server 2019",
-            agent_version="1.0.0",
-            architecture="x64",
-            enrolled_at="2025-09-27T20:00:00Z",
-            last_scan="2025-09-27T20:30:00Z",
-            tags=["production", "windows", "server"]
+            id=agent.agent_id,
+            hostname=agent.hostname,
+            ip_address=agent.ip_address or "Unknown",
+            status=agent_status,
+            last_seen=agent.last_seen_at.isoformat() if agent.last_seen_at else "",
+            os_info=f"{agent.os_type} {agent.os_version}",
+            agent_version=agent.agent_version,
+            architecture="x64",  # Default, could be stored in metadata
+            enrolled_at=agent.created_at.isoformat(),
+            last_scan=last_scan,
+            tags=agent.tags or []
         )
-    
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Agent not found"
-    )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to get agent for UI", agent_id=agent_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve agent"
+        )

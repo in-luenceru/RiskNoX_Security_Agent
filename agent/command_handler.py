@@ -10,6 +10,7 @@ import platform
 import psutil
 import tempfile
 import shutil
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
@@ -21,7 +22,8 @@ logger = structlog.get_logger()
 class CommandHandler:
     """Handles command execution from Manager"""
     
-    def __init__(self):
+    def __init__(self, websocket_client=None):
+        self.websocket_client = websocket_client
         self.handlers = {
             "scan": self._handle_scan,
             "patch": self._handle_patch,
@@ -42,6 +44,38 @@ class CommandHandler:
         
         # Ensure directories exist
         self.logs_dir.mkdir(exist_ok=True)
+        
+    async def send_scan_log(self, scan_id: str, log_line: str, progress: int = 0, 
+                           files_scanned: int = 0, threats_found: int = 0):
+        """Send real-time scan log to manager"""
+        if self.websocket_client:
+            try:
+                log_message = {
+                    "type": "scan_logs",
+                    "scan_id": scan_id,
+                    "log_line": log_line,
+                    "progress": progress,
+                    "files_scanned": files_scanned,
+                    "threats_found": threats_found,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                await self.websocket_client._send_message(log_message)
+            except Exception as e:
+                logger.warning("Failed to send scan log", error=str(e))
+                
+    async def send_status_update(self, status_type: str, status_data: dict):
+        """Send status update to manager"""
+        if self.websocket_client:
+            try:
+                status_message = {
+                    "type": "status_update",
+                    "status_type": status_type,
+                    "status": status_data,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                await self.websocket_client._send_message(status_message)
+            except Exception as e:
+                logger.warning("Failed to send status update", error=str(e))
         
     async def execute(self, command_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Execute command and return result"""
@@ -77,11 +111,16 @@ class CommandHandler:
         scan_type = payload.get("scan_type", "full")
         targets = payload.get("targets", [])
         options = payload.get("options", {})
+        scan_id = payload.get("command_id", str(uuid.uuid4()))
         
         try:
+            # Send initial scan log
+            await self.send_scan_log(scan_id, f"Starting {scan_type} scan...", 0, 0, 0)
+            
             # Prepare scan command based on original backend_server.py logic
             clamscan_exe = self.vendor_dir / "clamscan.exe"
             if not clamscan_exe.exists():
+                await self.send_scan_log(scan_id, "ERROR: ClamAV scanner not found", 0, 0, 0)
                 return {
                     "success": False,
                     "error": "ClamAV scanner not found"
@@ -104,14 +143,20 @@ class CommandHandler:
             if scan_type == "full":
                 if platform.system() == "Windows":
                     cmd.append("C:\\")
+                    target_description = "Full system (C: drive)"
                 else:
                     cmd.append("/")
+                    target_description = "Full system (root)"
             elif scan_type == "custom" and targets:
                 cmd.extend(targets)
+                target_description = f"Custom targets: {', '.join(targets)}"
             else:
                 # Default to user directory
                 cmd.append(str(Path.home()))
+                target_description = f"User directory: {Path.home()}"
                 
+            await self.send_scan_log(scan_id, f"Scan target: {target_description}", 5, 0, 0)
+            
             # Execute scan with real-time progress tracking
             logger.info("Starting antivirus scan", command=cmd[:3])  # Don't log full command
             
@@ -125,6 +170,10 @@ class CommandHandler:
             files_scanned = 0
             infected_files = []
             scan_logs = []
+            estimated_total = 1000  # Rough estimate for progress calculation
+            last_log_time = datetime.now()
+            
+            await self.send_scan_log(scan_id, "Initializing scan engine...", 10, 0, 0)
             
             # Read output line by line for progress updates
             while True:
@@ -134,32 +183,71 @@ class CommandHandler:
                 
                 line_str = line.decode('utf-8', errors='ignore').strip()
                 if line_str:
-                    scan_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] {line_str}")
+                    timestamp = datetime.now().strftime('%H:%M:%S')
+                    formatted_log = f"[{timestamp}] {line_str}"
+                    scan_logs.append(formatted_log)
                     
                     # Count scanned files
                     if "Scanning" in line_str:
                         files_scanned += 1
+                        
+                        # Calculate rough progress (10% reserved for initialization, 90% for scanning)
+                        progress = min(10 + int((files_scanned / max(estimated_total, files_scanned)) * 85), 95)
+                        
+                        # Send periodic updates
+                        if files_scanned % 50 == 0 or (datetime.now() - last_log_time).seconds >= 2:
+                            await self.send_scan_log(
+                                scan_id, 
+                                f"Scanned {files_scanned} files...", 
+                                progress, 
+                                files_scanned, 
+                                len(infected_files)
+                            )
+                            last_log_time = datetime.now()
                     
                     # Detect infected files
-                    if "FOUND" in line_str:
+                    elif "FOUND" in line_str:
                         infected_files.append(line_str)
+                        await self.send_scan_log(
+                            scan_id, 
+                            f"🚨 THREAT DETECTED: {line_str}", 
+                            min(10 + int((files_scanned / max(estimated_total, files_scanned)) * 85), 95), 
+                            files_scanned, 
+                            len(infected_files)
+                        )
                     
-                    # Send progress update (would be sent via WebSocket in real implementation)
-                    if files_scanned % 100 == 0:  # Update every 100 files
-                        logger.info("Scan progress", files_scanned=files_scanned, threats=len(infected_files))
+                    # Send important status messages
+                    elif any(keyword in line_str.lower() for keyword in ["error", "warning", "summary"]):
+                        await self.send_scan_log(
+                            scan_id, 
+                            formatted_log, 
+                            min(10 + int((files_scanned / max(estimated_total, files_scanned)) * 85), 95), 
+                            files_scanned, 
+                            len(infected_files)
+                        )
             
             await process.wait()
+            
+            # Send completion log
+            await self.send_scan_log(
+                scan_id, 
+                f"Scan completed! Files: {files_scanned}, Threats: {len(infected_files)}", 
+                100, 
+                files_scanned, 
+                len(infected_files)
+            )
             
             return {
                 "success": True,
                 "scan_type": scan_type,
-                "targets": targets if targets else ["system"],
+                "targets": targets if targets else [target_description],
                 "files_scanned": files_scanned,
                 "infected_files": infected_files,
                 "threats_found": len(infected_files),
                 "scan_completed_at": datetime.utcnow().isoformat(),
                 "execution_logs": scan_logs[-50:],  # Last 50 log lines
-                "exit_code": process.returncode
+                "exit_code": process.returncode,
+                "progress": 100
             }
             
         except Exception as e:
@@ -174,12 +262,27 @@ class CommandHandler:
         patch_ids = payload.get("patch_ids", [])
         install_options = payload.get("install_options", {})
         
+        # Send status update
+        await self.send_status_update("patch_management", {
+            "action": "starting",
+            "patches_to_install": len(patch_ids)
+        })
+        
         try:
             if platform.system() != "Windows":
+                await self.send_status_update("patch_management", {
+                    "action": "error",
+                    "message": "Patch management only supported on Windows"
+                })
                 return {
                     "success": False,
                     "error": "Patch management only supported on Windows"
                 }
+                
+            await self.send_status_update("patch_management", {
+                "action": "checking_updates",
+                "message": "Checking for available updates..."
+            })
                 
             # Use Windows Update PowerShell module
             ps_script = f'''
@@ -202,16 +305,29 @@ class CommandHandler:
                 except:
                     patch_results = []
                     
+                patch_count = len(patch_results) if isinstance(patch_results, list) else 1
+                
+                await self.send_status_update("patch_management", {
+                    "action": "completed",
+                    "patches_installed": patch_count,
+                    "reboot_required": install_options.get("reboot_required", False)
+                })
+                    
                 return {
                     "success": True,
-                    "patches_installed": len(patch_results) if isinstance(patch_results, list) else 1,
+                    "patches_installed": patch_count,
                     "reboot_required": install_options.get("reboot_required", False),
                     "installation_completed_at": datetime.utcnow().isoformat()
                 }
             else:
+                error_msg = stderr.decode('utf-8', errors='ignore')
+                await self.send_status_update("patch_management", {
+                    "action": "error",
+                    "message": error_msg
+                })
                 return {
                     "success": False,
-                    "error": stderr.decode('utf-8', errors='ignore')
+                    "error": error_msg
                 }
                 
         except Exception as e:
@@ -224,6 +340,12 @@ class CommandHandler:
     async def _handle_web_block(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Handle web blocking command"""
         urls = payload.get("urls", [])
+        
+        # Send status update
+        await self.send_status_update("web_blocking", {
+            "action": "starting",
+            "urls_to_block": len(urls)
+        })
         
         try:
             if platform.system() != "Windows":
@@ -255,9 +377,16 @@ class CommandHandler:
                 
                 # Append new entries
                 with open(hosts_file, 'a', encoding='utf-8') as f:
-                    f.write("\n# RiskNoX Agent Blocked URLs\\n")
+                    f.write("\n# RiskNoX Agent Blocked URLs\n")
                     for entry in new_entries:
-                        f.write(entry + "\\n")
+                        f.write(entry + "\n")
+                        
+            # Send completion status
+            await self.send_status_update("web_blocking", {
+                "action": "completed",
+                "urls_blocked": blocked_count,
+                "total_urls": len(urls)
+            })
                         
             return {
                 "success": True,

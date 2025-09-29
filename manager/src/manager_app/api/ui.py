@@ -129,6 +129,23 @@ async def get_agents_ui(
             if agent.status in ["error", "failed", "revoked"]:
                 agent_status = "error"
             
+            # Apply search filter
+            if search:
+                search_lower = search.lower()
+                if (search_lower not in agent.hostname.lower() and 
+                    search_lower not in (agent.ip_address or "").lower() and
+                    search_lower not in agent.agent_id.lower()):
+                    continue
+            
+            # Apply status filter
+            if status and agent_status != status:
+                continue
+            
+            # Get last scan from agent metadata
+            last_scan = None
+            if agent.agent_metadata and agent.agent_metadata.get("last_scan"):
+                last_scan = agent.agent_metadata["last_scan"]
+            
             agent_ui = AgentUI(
                 id=agent.agent_id,
                 hostname=agent.hostname,
@@ -141,6 +158,7 @@ async def get_agents_ui(
                 created_at=agent.created_at.isoformat(),
                 updated_at=agent.created_at.isoformat(),
                 enrolled_at=agent.created_at.isoformat(),
+                last_scan=last_scan,
                 certificate_status="valid" if agent.certificate_expires_at and agent.certificate_expires_at > datetime.now(timezone.utc) else "expired"
             )
             agents.append(agent_ui)
@@ -246,15 +264,38 @@ async def get_system_stats_ui(db: AsyncSession = Depends(get_db_session)):
         agents_data = await list_agents(db=db, limit=1000, offset=0)  # Returns list directly
         total_agents = len(agents_data)
         
-        # Count active agents (enrolled and active agents should be considered active)
-        active_agents = len([a for a in agents_data if a.status in ["active", "enrolled"]])
+        # Count online agents using WebSocket connection status
+        from ..ws.connection_manager import connection_manager
+        online_agents = len(connection_manager.agent_connections)
+        
+        # Count pending commands
+        from sqlalchemy import select, func
+        from ..db.models import Command
+        pending_commands_query = select(func.count(Command.command_id)).where(
+            Command.status.in_(["pending", "sent", "acknowledged"])
+        )
+        pending_commands_result = await db.execute(pending_commands_query)
+        pending_commands = pending_commands_result.scalar() or 0
+        
+        # Count recent threats from scan results
+        recent_threats_query = select(func.count(Command.command_id)).where(
+            Command.command_type == "scan",
+            Command.status == "completed",
+            Command.result.op("->")("threats_found").astext.cast(Integer) > 0
+        )
+        try:
+            from sqlalchemy import Integer
+            recent_threats_result = await db.execute(recent_threats_query)
+            recent_threats = recent_threats_result.scalar() or 0
+        except:
+            recent_threats = 0
         
         return {
             "total_agents": total_agents,
-            "active_agents": active_agents,
-            "pending_commands": 0,  # TODO: Implement command counting
-            "recent_threats": 0,    # TODO: Implement threat counting
-            "system_health": "healthy"
+            "active_agents": online_agents,
+            "pending_commands": pending_commands,
+            "recent_threats": recent_threats,
+            "system_health": "healthy" if online_agents > 0 else "warning"
         }
         
     except Exception as e:

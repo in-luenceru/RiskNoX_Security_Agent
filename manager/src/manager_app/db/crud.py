@@ -451,3 +451,22 @@ async def get_commands_by_type(
     
     result = await db.execute(query)
     return result.scalars().all()
+
+
+async def get_latest_command_by_type(
+    db: AsyncSession,
+    agent_id: str,
+    command_type: str
+) -> Optional[Command]:
+    """Get the latest command of a specific type for an agent"""
+    agent = await get_agent_by_id(db, agent_id)
+    if not agent:
+        return None
+    
+    query = select(Command).where(
+        Command.agent_id == agent.id,
+        Command.command_type == command_type
+    ).order_by(Command.created_at.desc()).limit(1)
+    
+    result = await db.execute(query)
+    return result.scalar_one_or_none()

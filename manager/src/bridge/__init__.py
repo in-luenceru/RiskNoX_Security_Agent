@@ -73,7 +73,7 @@ class ManagerBridge:
             }
             
         except ValueError as e:
-            logger.warning("Invalid admin action", action=action, agent_id=agent_id, error=str(e))
+            logger.warning(f"Invalid admin action {action} for agent {agent_id}: {str(e)}")
             return {
                 "success": False,
                 "error": f"Invalid action: {str(e)}",
@@ -81,8 +81,7 @@ class ManagerBridge:
             }
             
         except Exception as e:
-            logger.error("Failed to execute admin action", 
-                        action=action, agent_id=agent_id, error=str(e))
+            logger.error(f"Failed to execute admin action {action} for agent {agent_id}: {str(e)}")
             return {
                 "success": False,
                 "error": f"Execution failed: {str(e)}",

@@ -229,8 +229,7 @@ if sio and socketio_app:
 else:
     logger.warning("Socket.IO not available, UI real-time features will be limited")
 
-if schedules:
-    app.include_router(schedules.router, prefix="/api/v1")
+# Include remaining API routers (schedules removed since scheduling is now in antivirus scanner)
 if patches:
     app.include_router(patches.router, prefix="/api/v1")
 if events:
