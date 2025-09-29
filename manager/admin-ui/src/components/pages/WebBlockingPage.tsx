@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Globe, Plus, Trash2, Shield, AlertTriangle } from 'lucide-react';
-import { agentApi, commandApi } from '../../services/api';
+import { agentApi, commandApi, webBlockingApi } from '../../services/api';
 
 interface BlockedUrl {
   id: string;
@@ -23,34 +23,35 @@ const WebBlockingPage: React.FC = () => {
     queryFn: () => agentApi.getAgents({ per_page: 1000 }),
   });
 
-  // Mock blocked URLs data - in real implementation, this would come from an API
-  const { data: blockedUrls } = useQuery<BlockedUrl[]>({
+  // Get real blocked URLs data from API
+  const { data: blockedUrls, refetch: refetchBlockedUrls } = useQuery<BlockedUrl[]>({
     queryKey: ['blocked-urls'],
-    queryFn: async () => [
-      {
-        id: '1',
-        url: 'malicious-site.com',
-        category: 'malicious',
-        added_at: new Date().toISOString(),
-        blocked_count: 45
-      },
-      {
-        id: '2', 
-        url: 'gambling-site.net',
-        category: 'gambling',
-        added_at: new Date().toISOString(),
-        blocked_count: 12
+    queryFn: async () => {
+      try {
+        console.log('Fetching blocked URLs from API...');
+        const response = await webBlockingApi.getBlockedUrls({ per_page: 100 });
+        console.log('Blocked URLs API response:', response);
+        return response.items || [];
+      } catch (error) {
+        console.error('Failed to fetch blocked URLs:', error);
+        // Return empty array instead of mock data to show real state
+        return [];
       }
-    ],
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Block URL mutation
   const blockUrlMutation = useMutation({
-    mutationFn: async ({ url, agentIds }: { url: string; agentIds: string[] }) => {
+    mutationFn: async ({ url, category, agentIds }: { url: string; category: string; agentIds: string[] }) => {
+      // First add to blocked URLs list
+      await webBlockingApi.addBlockedUrl({ url, category, agent_ids: agentIds });
+      // Then send command to agents
       return commandApi.runWebBlockCommand(agentIds, 'block', [url]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocked-urls'] });
+      refetchBlockedUrls();
       setNewUrl('');
       setSelectedAgents([]);
     },
@@ -58,11 +59,15 @@ const WebBlockingPage: React.FC = () => {
 
   // Unblock URL mutation
   const unblockUrlMutation = useMutation({
-    mutationFn: async ({ url, agentIds }: { url: string; agentIds: string[] }) => {
-      return commandApi.runWebBlockCommand(agentIds, 'unblock', [url]);
+    mutationFn: async ({ urlId, url, agentIds }: { urlId: string; url: string; agentIds: string[] }) => {
+      // Send unblock command to agents
+      await commandApi.runWebBlockCommand(agentIds, 'unblock', [url]);
+      // Then remove from blocked URLs list
+      return webBlockingApi.removeBlockedUrl(urlId, agentIds);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocked-urls'] });
+      refetchBlockedUrls();
     },
   });
 
@@ -70,15 +75,23 @@ const WebBlockingPage: React.FC = () => {
 
   const handleBlockUrl = () => {
     if (!newUrl.trim() || selectedAgents.length === 0) return;
-    blockUrlMutation.mutate({ url: newUrl.trim(), agentIds: selectedAgents });
+    blockUrlMutation.mutate({ 
+      url: newUrl.trim(), 
+      category: newCategory,
+      agentIds: selectedAgents 
+    });
   };
 
-  const handleUnblockUrl = (url: string) => {
+  const handleUnblockUrl = (blockedUrl: BlockedUrl) => {
     if (selectedAgents.length === 0) {
       alert('Please select agents first');
       return;
     }
-    unblockUrlMutation.mutate({ url, agentIds: selectedAgents });
+    unblockUrlMutation.mutate({ 
+      urlId: blockedUrl.id,
+      url: blockedUrl.url, 
+      agentIds: selectedAgents 
+    });
   };
 
   const getCategoryBadge = (category: string) => {
@@ -253,9 +266,10 @@ const WebBlockingPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
-                      onClick={() => handleUnblockUrl(blockedUrl.url)}
+                      onClick={() => handleUnblockUrl(blockedUrl)}
                       disabled={selectedAgents.length === 0 || unblockUrlMutation.isPending}
                       className="text-red-600 hover:text-red-900 disabled:text-gray-400 mr-2"
+                      title="Unblock URL"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

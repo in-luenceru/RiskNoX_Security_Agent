@@ -25,7 +25,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Agents', href: '/agents', icon: Shield },
     { name: 'Antivirus Scanner', href: '/antivirus', icon: ShieldCheck },
     { name: 'Web Blocking', href: '/web-blocking', icon: Globe },
-    { name: 'Schedules', href: '/schedules', icon: Calendar },
     { name: 'Patch Rollouts', href: '/patches', icon: Package },
     { name: 'Events', href: '/events', icon: Activity },
   ];

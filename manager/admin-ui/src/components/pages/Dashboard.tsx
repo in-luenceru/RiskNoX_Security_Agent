@@ -14,7 +14,8 @@ const Dashboard: React.FC = () => {
 
   // Subscribe to real-time agent updates
   React.useEffect(() => {
-    const unsubscribe = webSocketService.subscribe('agents_update', (data) => {
+    const unsubscribeAgentsUpdate = webSocketService.subscribe('agents_update', (data) => {
+      console.log('Agents update received:', data);
       // Update the agents query cache with real-time data
       queryClient.setQueryData(['agents', { per_page: 1000 }], {
         items: data.agents || [],
@@ -24,7 +25,28 @@ const Dashboard: React.FC = () => {
       });
     });
 
-    return unsubscribe;
+    const unsubscribeAgentStatus = webSocketService.subscribe('agent_status', (data) => {
+      console.log('Agent status update received:', data);
+      // Invalidate and refetch agents data to get fresh status
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+    });
+
+    const unsubscribeAgentConnect = webSocketService.subscribe('agent_connected', (data) => {
+      console.log('Agent connected:', data);
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+    });
+
+    const unsubscribeAgentDisconnect = webSocketService.subscribe('agent_disconnected', (data) => {
+      console.log('Agent disconnected:', data);
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+    });
+
+    return () => {
+      unsubscribeAgentsUpdate();
+      unsubscribeAgentStatus();
+      unsubscribeAgentConnect();
+      unsubscribeAgentDisconnect();
+    };
   }, [queryClient]);
 
   const { data: health } = useQuery({
@@ -51,29 +73,38 @@ const Dashboard: React.FC = () => {
       // Debug log for agent status
       console.log(`Agent ${agent.hostname}: status=${agent.status}, last_seen=${agent.last_seen}`);
       
-      // Categorize agent based on status
-      if (agent.status === 'online') {
-        acc.online++;
-      } else if (agent.status === 'offline') {
-        acc.offline++;
-      } else if (agent.status === 'error') {
-        acc.error++;
-      } else {
-        // For enrolled or other statuses, check last_seen to determine online/offline
-        if (agent.last_seen) {
-          const lastSeen = new Date(agent.last_seen);
-          const now = new Date();
-          const timeDiff = (now.getTime() - lastSeen.getTime()) / 1000; // seconds
-          
-          if (timeDiff < 300) { // Online if seen within 5 minutes
-            acc.online++;
+      // Use the agent's explicit status field as primary indicator
+      // The backend should be setting this correctly based on WebSocket connections
+      switch (agent.status?.toLowerCase()) {
+        case 'online':
+        case 'connected':
+        case 'active':
+          acc.online++;
+          break;
+        case 'error':
+        case 'failed':
+          acc.error++;
+          break;
+        case 'offline':
+        case 'disconnected':
+        case 'inactive':
+        default:
+          // For offline agents, also check last_seen as backup
+          if (agent.last_seen) {
+            const lastSeen = new Date(agent.last_seen);
+            const now = new Date();
+            const timeDiff = (now.getTime() - lastSeen.getTime()) / 1000; // seconds
+            
+            // If seen very recently but marked offline, might be a status update delay
+            if (timeDiff < 60) { // Less than 1 minute ago
+              acc.online++;
+            } else {
+              acc.offline++;
+            }
           } else {
             acc.offline++;
           }
-        } else {
-          // If never seen, consider offline
-          acc.offline++;
-        }
+          break;
       }
       
       return acc;

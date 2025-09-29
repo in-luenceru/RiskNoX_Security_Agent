@@ -37,12 +37,20 @@ const EventsPage: React.FC = () => {
 
   // Subscribe to real-time events
   React.useEffect(() => {
-    const unsubscribe = webSocketService.subscribe('new_event', (data) => {
+    const unsubscribeNewEvent = webSocketService.subscribe('new_event', (data) => {
       console.log('New event received:', data);
       refetch();
     });
 
-    return unsubscribe;
+    const unsubscribeManagerAction = webSocketService.subscribe('manager_action', (data) => {
+      console.log('Manager action received:', data);
+      refetch();
+    });
+
+    return () => {
+      unsubscribeNewEvent();
+      unsubscribeManagerAction();
+    };
   }, [refetch]);
 
   const events = eventsData?.items || [];

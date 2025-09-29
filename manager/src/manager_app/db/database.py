@@ -22,7 +22,7 @@ class Base(DeclarativeBase):
 
 
 async def init_db():
-    """Initialize database connection"""
+    """Initialize database connection and create tables"""
     global engine, async_session_factory
     
     settings = get_settings()
@@ -43,7 +43,15 @@ async def init_db():
         expire_on_commit=False
     )
     
-    logger.info("Database connection initialized", url=settings.DATABASE_URL.split('@')[1])
+    # Create tables
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created/verified")
+    except Exception as e:
+        logger.warning("Failed to create database tables", error=str(e))
+    
+    logger.info("Database connection initialized", url=settings.DATABASE_URL.split('@')[1] if '@' in settings.DATABASE_URL else settings.DATABASE_URL)
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

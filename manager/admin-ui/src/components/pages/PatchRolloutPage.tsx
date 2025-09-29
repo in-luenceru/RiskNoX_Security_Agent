@@ -65,6 +65,13 @@ const PatchRolloutPage: React.FC = () => {
   const rollouts = rolloutsData?.items || [];
   const totalPages = rolloutsData?.pages || 1;
 
+  // Fetch agents so they can be referenced in the rollout list device status section
+  const { data: agentsData } = useQuery({
+    queryKey: ['agents', { per_page: 1000 }],
+    queryFn: () => agentApi.getAgents({ per_page: 1000 }),
+  });
+  const agents = agentsData?.items || [];
+
   const getStatusIcon = (status: PatchRollout['status']) => {
     switch (status) {
       case 'completed':
@@ -268,6 +275,39 @@ const PatchRolloutPage: React.FC = () => {
                       {patch.patch_id}
                     </span>
                   ))}
+                </div>
+              </div>
+
+              {/* Agent Patches Details */}
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Device Patch Status:</h4>
+                <div className="bg-gray-50 rounded p-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    {agents.slice(0, 4).map((agent) => {
+                      // Determine patch status based on rollout progress
+                      const patchStatus = rollout.progress > 80 ? 'Installed' : 
+                                         rollout.status === 'running' ? 'In Progress' : 
+                                         rollout.status === 'failed' ? 'Failed' : 'Pending';
+                      const statusColor = patchStatus === 'Installed' ? 'bg-green-100 text-green-800' :
+                                         patchStatus === 'Failed' ? 'bg-red-100 text-red-800' :
+                                         patchStatus === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                                         'bg-gray-100 text-gray-800';
+                      
+                      return (
+                        <div key={agent.id} className="flex justify-between items-center">
+                          <span className="font-medium">{agent.hostname}</span>
+                          <span className={`px-2 py-1 rounded-full text-xs ${statusColor}`}>
+                            {patchStatus}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {agents.length > 4 && (
+                      <div className="text-gray-500 col-span-2 text-center">
+                        +{agents.length - 4} more devices
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

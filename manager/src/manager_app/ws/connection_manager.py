@@ -84,32 +84,50 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, agent_id: str, 
                      certificate_serial: str, db: AsyncSession) -> AgentConnection:
         """Register new agent connection"""
+        # Close existing connection if any
+        await self.disconnect(agent_id)
+        
+        # Create new connection
+        connection = AgentConnection(websocket, agent_id, certificate_serial)
+        
+        # Store connection mappings
+        self.connections[connection.connection_id] = connection
+        self.agent_connections[agent_id] = connection.connection_id
+        
+        # Update agent status in database
+        await update_agent_connection_status(
+            db, agent_id, "active", datetime.utcnow()
+        )
+        
+        # Send welcome message
+        welcome_message = {
+            "type": "welcome",
+            "connection_id": connection.connection_id,
+            "server_time": datetime.utcnow().isoformat(),
+            "heartbeat_interval": 30
+        }
+        await connection.send_message(welcome_message)
+        
+        # Broadcast agent connection to UI
         try:
-            # Close existing connection if any
-            await self.disconnect(agent_id)
+            from ..socketio_server import sio
+            await sio.emit('agent_connected', {
+                'agent_id': agent_id,
+                'timestamp': datetime.utcnow().isoformat()
+            })
             
-            # Create new connection
-            connection = AgentConnection(websocket, agent_id, certificate_serial)
-            
-            # Store connection mappings
-            self.connections[connection.connection_id] = connection
-            self.agent_connections[agent_id] = connection.connection_id
-            
-            # Update agent status in database
-            await update_agent_connection_status(
-                db, agent_id, "active", datetime.utcnow()
+            # Create connection event
+            from ..db.crud import create_event
+            await create_event(
+                db=db,
+                event_type="agent_connected",
+                event_data={"message": f"Agent {agent_id} connected successfully"},
+                source="manager",
+                agent_id=agent_id,
+                severity="info"
             )
-            
-            # Send welcome message
-            welcome_message = {
-                "type": "welcome",
-                "connection_id": connection.connection_id,
-                "server_time": datetime.utcnow().isoformat(),
-                "heartbeat_interval": 30
-            }
-            await connection.send_message(welcome_message)
-            
-            # Send queued messages
+        except Exception as e:
+            logger.warning("Failed to broadcast agent connection", error=str(e))            # Send queued messages
             await self._send_queued_messages(agent_id)
             
             logger.info("Agent connected via WebSocket", 
@@ -155,6 +173,27 @@ class ConnectionManager:
             # Update database status
             if db:
                 await update_agent_connection_status(db, agent_id, "inactive", None)
+                
+                # Broadcast agent disconnection to UI
+                try:
+                    from ..socketio_server import sio
+                    await sio.emit('agent_disconnected', {
+                        'agent_id': agent_id,
+                        'timestamp': datetime.utcnow().isoformat()
+                    })
+                    
+                    # Create disconnection event
+                    from ..db.crud import create_event
+                    await create_event(
+                        db=db,
+                        event_type="agent_disconnected", 
+                        event_data={"message": f"Agent {agent_id} disconnected"},
+                        source="manager",
+                        agent_id=agent_id,
+                        severity="info"
+                    )
+                except Exception as e:
+                    logger.warning("Failed to broadcast agent disconnection", error=str(e))
                 
             logger.info("Agent disconnected", agent_id=agent_id)
             
@@ -216,6 +255,8 @@ class ConnectionManager:
                 await self._handle_agent_event(agent_id, message, db)
             elif message_type == "status_update":
                 await self._handle_status_update(agent_id, message, db)
+            elif message_type == "scan_logs":
+                await self._handle_scan_logs(agent_id, message)
             else:
                 logger.warning("Unknown message type from agent", 
                               agent_id=agent_id, message_type=message_type)
@@ -244,6 +285,30 @@ class ConnectionManager:
             logger.info("Command result received", 
                        agent_id=agent_id, command_id=command_id, status=status)
             
+            # Broadcast command update to UI
+            try:
+                from ..socketio_server import sio
+                await sio.emit('command_update', {
+                    'command_id': command_id,
+                    'agent_id': agent_id,
+                    'status': status,
+                    'result': result,
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+                
+                # If this is a scan result, broadcast scan update
+                if result and result.get('scan_type'):
+                    await sio.emit('scan_update', {
+                        'scan_id': command_id,
+                        'agent_id': agent_id,
+                        'status': status,
+                        'files_scanned': result.get('files_scanned', 0),
+                        'threats_found': result.get('threats_found', 0),
+                        'timestamp': datetime.utcnow().isoformat()
+                    })
+            except Exception as e:
+                logger.warning("Failed to broadcast command update", error=str(e))
+            
     async def _handle_agent_event(self, agent_id: str, message: dict, db: AsyncSession):
         """Handle agent event (scan results, etc.)"""
         from ..db.crud import create_event
@@ -266,6 +331,25 @@ class ConnectionManager:
         
         status_data = message.get("status", {})
         await update_agent_metadata(db, agent_id, {"last_status": status_data})
+    
+    async def _handle_scan_logs(self, agent_id: str, message: dict):
+        """Handle real-time scan logs from agent"""
+        try:
+            from ..socketio_server import sio
+            scan_id = message.get("scan_id")
+            log_line = message.get("log_line")
+            
+            if scan_id and log_line:
+                await sio.emit('scan_logs', {
+                    'scan_id': scan_id,
+                    'agent_id': agent_id,
+                    'log_line': log_line,
+                    'timestamp': message.get("timestamp", datetime.utcnow().isoformat())
+                })
+                
+                logger.debug("Scan log broadcasted", scan_id=scan_id, agent_id=agent_id)
+        except Exception as e:
+            logger.warning("Failed to broadcast scan logs", error=str(e))
         
     async def _send_queued_messages(self, agent_id: str):
         """Send queued messages when agent comes online"""

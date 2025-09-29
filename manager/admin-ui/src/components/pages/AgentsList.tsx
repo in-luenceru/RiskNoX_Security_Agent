@@ -13,16 +13,30 @@ const AgentsList: React.FC = () => {
   const [page, setPage] = React.useState(1);
 
   // Query for agents
-  const { data: agentsData, refetch } = useQuery({
+  const { data: agentsData, refetch, isLoading, error } = useQuery({
     queryKey: ['agents', { page, search, status: statusFilter, tags: tagFilter ? [tagFilter] : undefined }],
-    queryFn: () => agentApi.getAgents({
-      page,
-      per_page: 20,
-      search: search || undefined,
-      status: statusFilter || undefined,
-      tags: tagFilter ? [tagFilter] : undefined,
-    }),
+    queryFn: async () => {
+      console.log('Fetching agents with params:', { page, search, statusFilter, tagFilter });
+      const result = await agentApi.getAgents({
+        page,
+        per_page: 20,
+        search: search || undefined,
+        status: statusFilter || undefined,
+        tags: tagFilter ? [tagFilter] : undefined,
+      });
+      console.log('Agents API response:', result);
+      return result;
+    },
+    retry: 3,
+    retryDelay: 1000,
   });
+
+  // Debug logging for troubleshooting
+  React.useEffect(() => {
+    console.log('AgentsList - agentsData:', agentsData);
+    console.log('AgentsList - isLoading:', isLoading);
+    console.log('AgentsList - error:', error);
+  }, [agentsData, isLoading, error]);
 
   // Subscribe to real-time updates
   React.useEffect(() => {
@@ -197,8 +211,33 @@ const AgentsList: React.FC = () => {
           ))}
         </ul>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Loading agents...</h3>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="text-center py-12">
+            <Shield className="mx-auto h-12 w-12 text-red-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Failed to load agents</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {error instanceof Error ? error.message : 'An error occurred while loading agents'}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
         {/* Empty State */}
-        {agents.length === 0 && (
+        {agents.length === 0 && !isLoading && !error && (
           <div className="text-center py-12">
             <Shield className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No agents found</h3>

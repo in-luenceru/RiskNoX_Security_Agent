@@ -104,24 +104,29 @@ async def get_agents_ui(
         # Transform to UI format
         agents = []
         for agent in agents_data:
-            # Determine status based on last_seen_at and current status
+            # Determine status based on WebSocket connection state and last_seen_at
             agent_status = "offline"  # default
-            if agent.status == "enrolled":
-                if agent.last_seen_at:
-                    last_seen = agent.last_seen_at
-                    if isinstance(last_seen, str):
-                        last_seen = datetime.fromisoformat(last_seen.replace('Z', '+00:00'))
-                    now = datetime.now(timezone.utc)
-                    if last_seen.tzinfo is None:
-                        last_seen = last_seen.replace(tzinfo=timezone.utc)
-                    
-                    time_diff = (now - last_seen).total_seconds()
-                    agent_status = "online" if time_diff < 300 else "offline"  # 5 minutes
-                else:
-                    agent_status = "offline"
-            elif agent.status in ["active", "connected"]:
+            
+            # Check WebSocket connection status first
+            from ..ws.connection_manager import connection_manager
+            is_ws_connected = agent.agent_id in connection_manager.agent_connections
+            
+            if is_ws_connected:
                 agent_status = "online"
-            elif agent.status in ["error", "failed"]:
+            elif agent.last_seen_at:
+                last_seen = agent.last_seen_at
+                if isinstance(last_seen, str):
+                    last_seen = datetime.fromisoformat(last_seen.replace('Z', '+00:00'))
+                now = datetime.now(timezone.utc)
+                if last_seen.tzinfo is None:
+                    last_seen = last_seen.replace(tzinfo=timezone.utc)
+                
+                time_diff = (now - last_seen).total_seconds()
+                # Agent is online if seen within last 2 minutes
+                agent_status = "online" if time_diff < 120 else "offline"
+            
+            # Override with error status if agent has error status
+            if agent.status in ["error", "failed", "revoked"]:
                 agent_status = "error"
             
             agent_ui = AgentUI(

@@ -3,6 +3,7 @@ Command delivery tasks for Celery background processing
 """
 
 import asyncio
+import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 
@@ -188,23 +189,44 @@ def broadcast_command_to_agents(command_data: Dict[str, Any],
             try:
                 # Create individual commands for each target agent
                 from ..db.crud import create_command
+                from ..security.signer import sign_command_payload
+                from datetime import timedelta
                 
                 target_agents = agent_ids or []
                 
-                # TODO: If tags specified, resolve to agent IDs
-                # if tags:
-                #     tagged_agents = await get_agents_by_tags(db, tags)
-                #     target_agents.extend([agent.agent_id for agent in tagged_agents])
+                # If tags specified, resolve to agent IDs
+                if tags:
+                    from ..db.crud import get_agents_by_tags
+                    tagged_agents = await get_agents_by_tags(db, tags)
+                    target_agents.extend([agent.agent_id for agent in tagged_agents])
                 
                 created_commands = []
                 for agent_id in target_agents:
+                    # Create command payload with metadata
+                    ttl_minutes = command_data.get("ttl_minutes", 60)
+                    expires_at = datetime.utcnow() + timedelta(minutes=ttl_minutes)
+                    
+                    command_payload = {
+                        "command_id": str(uuid.uuid4()),
+                        "command_type": command_data["command_type"],
+                        "payload": command_data["payload"],
+                        "issued_at": datetime.utcnow().isoformat(),
+                        "expires_at": expires_at.isoformat(),
+                        "issued_by": "system"
+                    }
+                    
+                    # Sign the command
+                    signature = sign_command_payload(command_payload) or "unsigned"
+                    
                     command = await create_command(
                         db=db,
                         agent_id=agent_id,
                         command_type=command_data["command_type"],
-                        payload=command_data["payload"],
-                        priority=command_data.get("priority", 5),
-                        ttl_minutes=command_data.get("ttl_minutes", 60)
+                        payload=command_payload,
+                        signature=signature,
+                        created_by="system",
+                        expires_at=expires_at,
+                        priority=command_data.get("priority", 5)
                     )
                     created_commands.append(command.command_id)
                 

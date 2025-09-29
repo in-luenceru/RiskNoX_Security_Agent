@@ -20,9 +20,9 @@ import os
 
 from .api import health, enroll, agents, commands, ui
 try:
-    from .api import schedules, patches, events
+    from .api import schedules, patches, events, scans, web_blocking
 except ImportError:
-    schedules = patches = events = None
+    schedules = patches = events = scans = web_blocking = None
 from .db.database import engine, init_db
 from .settings import get_settings
 from .ws import ws_router
@@ -234,6 +234,10 @@ if patches:
     app.include_router(patches.router, prefix="/api/v1")
 if events:
     app.include_router(events.router, prefix="/api/v1")
+if scans:
+    app.include_router(scans.router, prefix="/api/v1")
+if web_blocking:
+    app.include_router(web_blocking.router, prefix="/api/v1")
 
 # Serve static files (Admin UI)
 static_dir = os.path.join(os.path.dirname(__file__), "..", "..", "static", "admin")

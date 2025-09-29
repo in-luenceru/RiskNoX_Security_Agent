@@ -228,51 +228,60 @@ async def get_agents_ui_format(
 ):
     """Get agents in UI-compatible format"""
     try:
-        # For now, return sample data that matches UI expectations
-        sample_agents = [
-            UIAgentResponse(
-                id="agent_1",
-                hostname="WIN-SERVER-01",
-                ip_address="192.168.1.100",
-                status="online",
-                last_seen="2025-09-27T21:00:00Z",
-                os_info="Windows Server 2019",
-                agent_version="1.0.0",
-                architecture="x64",
-                enrolled_at="2025-09-27T20:00:00Z",
-                tags=["production", "windows", "server"]
-            ),
-            UIAgentResponse(
-                id="agent_2", 
-                hostname="UBUNTU-WS-01",
-                ip_address="192.168.1.101",
-                status="offline",
-                last_seen="2025-09-27T19:00:00Z",
-                os_info="Ubuntu 22.04 LTS",
-                agent_version="1.0.0",
-                architecture="x64",
-                enrolled_at="2025-09-27T18:00:00Z",
-                tags=["development", "linux", "workstation"]
+        offset = (page - 1) * per_page
+        
+        # Get agents from database
+        agents_data = await list_agents(
+            db=db,
+            limit=per_page,
+            offset=offset,
+            status=None,  # We'll filter UI-side
+            tags=tags
+        )
+        
+        # Transform to UI format with real status detection
+        from ..ws.connection_manager import connection_manager
+        ui_agents = []
+        
+        for agent in agents_data:
+            # Determine real-time status
+            is_ws_connected = agent.agent_id in connection_manager.agent_connections
+            agent_status = "online" if is_ws_connected else "offline"
+            
+            # Override with error status if agent has issues
+            if agent.status in ["error", "failed", "revoked"]:
+                agent_status = "error"
+            
+            # Apply search filter
+            if search:
+                search_lower = search.lower()
+                if (search_lower not in agent.hostname.lower() and 
+                    search_lower not in (agent.ip_address or "").lower()):
+                    continue
+            
+            # Apply status filter
+            if status and agent_status != status:
+                continue
+                
+            ui_agent = UIAgentResponse(
+                id=agent.agent_id,
+                hostname=agent.hostname,
+                ip_address=agent.ip_address or "Unknown",
+                status=agent_status,
+                last_seen=agent.last_seen_at.isoformat() if agent.last_seen_at else "",
+                os_info=f"{agent.os_type} {agent.os_version}",
+                agent_version=agent.agent_version,
+                architecture="x64",  # Default, could be stored in metadata
+                enrolled_at=agent.created_at.isoformat(),
+                tags=agent.tags or []
             )
-        ]
+            ui_agents.append(ui_agent)
         
-        # Apply filters
-        if status:
-            sample_agents = [a for a in sample_agents if a.status == status]
-        
-        if tags:
-            sample_agents = [a for a in sample_agents if any(tag in a.tags for tag in tags)]
-        
-        if search:
-            sample_agents = [a for a in sample_agents if 
-                           search.lower() in a.hostname.lower() or 
-                           search.lower() in (a.ip_address or "").lower()]
-        
-        total = len(sample_agents)
+        total = len(ui_agents)
         pages = (total + per_page - 1) // per_page
         
         return UIPaginatedAgents(
-            items=sample_agents,
+            items=ui_agents,
             total=total,
             page=page,
             per_page=per_page,

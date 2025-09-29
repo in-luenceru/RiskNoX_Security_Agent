@@ -1,7 +1,8 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Shield, Play, Square, Clock, AlertTriangle, CheckCircle, Folder, HardDrive } from 'lucide-react';
-import { agentApi, commandApi, scheduleApi } from '../../services/api';
+import { Shield, Play, Square, Clock, AlertTriangle, CheckCircle, Folder, HardDrive, Terminal } from 'lucide-react';
+import { agentApi, commandApi, scheduleApi, scanApi } from '../../services/api';
+import webSocketService from '../../services/websocket';
 
 interface ScanResult {
   id: string;
@@ -15,11 +16,31 @@ interface ScanResult {
   completed_at?: string;
 }
 
+interface ScheduleModalProps {
+  onClose: () => void;
+  onSchedule: (data: {
+    name: string;
+    scan_type: string;
+    cron_expression: string;
+    target_tags: string[];
+  }) => void;
+  isLoading: boolean;
+}
+
+interface LiveLogsModalProps {
+  scanId: string;
+  logs: string[];
+  onClose: () => void;
+}
+
 const AntivirusScannerPage: React.FC = () => {
   const [selectedAgents, setSelectedAgents] = React.useState<string[]>([]);
   const [scanType, setScanType] = React.useState<'quick' | 'full' | 'directory'>('quick');
   const [scanPath, setScanPath] = React.useState('');
   const [showScheduleModal, setShowScheduleModal] = React.useState(false);
+  const [showLiveLogsModal, setShowLiveLogsModal] = React.useState(false);
+  const [selectedScanId, setSelectedScanId] = React.useState<string | null>(null);
+  const [liveLogs, setLiveLogs] = React.useState<string[]>([]);
   const queryClient = useQueryClient();
 
   // Get agents
@@ -34,31 +55,42 @@ const AntivirusScannerPage: React.FC = () => {
     queryFn: () => scheduleApi.getSchedules({ per_page: 100 }),
   });
 
-  // Mock scan results - in real implementation, this would come from an API
-  const { data: scanResults } = useQuery<ScanResult[]>({
+  // Get real scan results from API
+  const { data: scanResults, refetch: refetchScans } = useQuery<ScanResult[]>({
     queryKey: ['scan-results'],
-    queryFn: async () => [
-      {
-        id: '1',
-        agent_id: 'agent1',
-        scan_type: 'full',
-        status: 'completed',
-        threats_found: 2,
-        files_scanned: 45672,
-        started_at: new Date(Date.now() - 3600000).toISOString(),
-        completed_at: new Date().toISOString(),
-      },
-      {
-        id: '2',
-        agent_id: 'agent2',
-        scan_type: 'quick',
-        status: 'running',
-        threats_found: 0,
-        files_scanned: 1203,
-        started_at: new Date(Date.now() - 300000).toISOString(),
+    queryFn: async () => {
+      try {
+        console.log('Fetching scan results from API...');
+        const response = await scanApi.getScanResults({ per_page: 100 });
+        console.log('Scan results API response:', response);
+        return response.items || [];
+      } catch (error) {
+        console.error('Failed to fetch scan results:', error);
+        // Return empty array instead of mock data to show real state
+        return [];
       }
-    ],
+    },
+    refetchInterval: 5000, // Refresh every 5 seconds for live updates
   });
+
+  // WebSocket subscription for real-time scan updates
+  React.useEffect(() => {
+    const unsubscribeScanUpdate = webSocketService.subscribe('scan_update', (data) => {
+      console.log('Scan update received:', data);
+      refetchScans();
+    });
+
+    const unsubscribeScanLogs = webSocketService.subscribe('scan_logs', (data) => {
+      if (data.scan_id === selectedScanId) {
+        setLiveLogs(prev => [...prev, data.log_line]);
+      }
+    });
+
+    return () => {
+      unsubscribeScanUpdate();
+      unsubscribeScanLogs();
+    };
+  }, [refetchScans, selectedScanId]);
 
   // Start scan mutation
   const startScanMutation = useMutation({
@@ -356,7 +388,22 @@ const AntivirusScannerPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(scan.started_at).toLocaleString()}
+                      <div className="flex items-center space-x-2">
+                        <span>{new Date(scan.started_at).toLocaleString()}</span>
+                        {scan.status === 'running' && (
+                          <button
+                            onClick={() => {
+                              setSelectedScanId(scan.id);
+                              setLiveLogs([]);
+                              setShowLiveLogsModal(true);
+                            }}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-100 rounded hover:bg-blue-200"
+                          >
+                            <Terminal className="w-3 h-3 mr-1" />
+                            Live Logs
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -426,6 +473,19 @@ const AntivirusScannerPage: React.FC = () => {
           isLoading={createScheduleMutation.isPending}
         />
       )}
+
+      {/* Live Logs Modal */}
+      {showLiveLogsModal && selectedScanId && (
+        <LiveLogsModal
+          scanId={selectedScanId}
+          logs={liveLogs}
+          onClose={() => {
+            setShowLiveLogsModal(false);
+            setSelectedScanId(null);
+            setLiveLogs([]);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -434,6 +494,12 @@ interface ScheduleScanModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   isLoading: boolean;
+}
+
+interface LiveLogsModalProps {
+  scanId: string;
+  logs: string[];
+  onClose: () => void;
 }
 
 const ScheduleScanModal: React.FC<ScheduleScanModalProps> = ({ onClose, onSubmit, isLoading }) => {
@@ -512,6 +578,59 @@ const ScheduleScanModal: React.FC<ScheduleScanModalProps> = ({ onClose, onSubmit
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+const LiveLogsModal: React.FC<LiveLogsModalProps> = ({ scanId, logs, onClose }) => {
+  const logsEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new logs arrive
+  React.useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg w-full max-w-4xl h-3/4 flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Terminal className="w-5 h-5 mr-2" />
+            Live Scan Logs - {scanId}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <span className="sr-only">Close</span>
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="flex-1 p-4 overflow-hidden">
+          <div className="bg-black text-green-400 font-mono text-sm p-4 rounded h-full overflow-y-auto">
+            {logs.length === 0 ? (
+              <div className="text-gray-500">Waiting for logs...</div>
+            ) : (
+              logs.map((log, index) => (
+                <div key={index} className="mb-1">
+                  {log}
+                </div>
+              ))
+            )}
+            <div ref={logsEndRef} />
+          </div>
+        </div>
+        
+        <div className="p-4 border-t bg-gray-50">
+          <div className="flex justify-between items-center text-sm text-gray-600">
+            <span>{logs.length} log entries</span>
+            <span>Auto-refreshing...</span>
+          </div>
+        </div>
       </div>
     </div>
   );

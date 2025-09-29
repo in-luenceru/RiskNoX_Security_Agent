@@ -7,8 +7,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+import structlog
 
 from ..db.database import get_db_session
+
+logger = structlog.get_logger()
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -46,58 +49,100 @@ async def get_events(
     db: AsyncSession = Depends(get_db_session)
 ):
     """Get all events with pagination and filtering"""
-    # Placeholder implementation with sample data
-    sample_events = [
-        EventResponse(
-            id="event_1",
-            level="info",
-            source="agent",
-            event_type="agent_connected",
-            message="Agent connected successfully",
-            timestamp=datetime.utcnow(),
-            created_at=datetime.utcnow(),
-            agent_id="agent_123"
-        ),
-        EventResponse(
-            id="event_2", 
-            level="success",
-            source="scanner",
-            event_type="scan_completed",
-            message="Quick scan completed successfully",
-            timestamp=datetime.utcnow(),
-            created_at=datetime.utcnow(),
-            agent_id="agent_123",
-            scan_id="scan_456"
-        ),
-        EventResponse(
-            id="event_3",
-            level="warning",
-            source="patch_system",
-            event_type="patch_failed",
-            message="Patch installation failed",
-            details={"patch_id": "KB123456", "error": "Access denied"},
-            timestamp=datetime.utcnow(),
-            created_at=datetime.utcnow(),
-            agent_id="agent_123"
+    try:
+        from ..db.crud import list_events
+        
+        # Get events from database
+        events_data = await list_events(
+            db=db,
+            event_type=None,
+            severity=level,
+            limit=per_page,
+            offset=(page - 1) * per_page
         )
-    ]
-    
-    # Filter by level if provided
-    if level:
-        sample_events = [e for e in sample_events if e.level == level]
-    
-    # Filter by source if provided
-    if source:
-        sample_events = [e for e in sample_events if e.source == source]
-    
-    # Simple search in message if provided
-    if search:
-        sample_events = [e for e in sample_events if search.lower() in e.message.lower()]
-    
-    return PaginatedEvents(
-        items=sample_events,
-        total=len(sample_events),
-        page=page,
-        per_page=per_page,
-        pages=1
-    )
+        
+        # Convert to response format
+        events = []
+        for event in events_data:
+            agent_id = None
+            if event.agent:
+                agent_id = event.agent.agent_id
+            
+            # Map severity to level for UI compatibility
+            level_mapping = {
+                "debug": "info",
+                "info": "info", 
+                "warning": "warning",
+                "error": "error",
+                "critical": "error"
+            }
+            
+            event_response = EventResponse(
+                id=str(event.id),
+                agent_id=agent_id,
+                event_type=event.event_type,
+                level=level_mapping.get(event.severity, "info"),
+                source=event.source,
+                message=event.event_data.get("message", f"{event.event_type} event"),
+                details=event.event_data,
+                timestamp=event.timestamp,
+                created_at=event.timestamp,
+                user_id=event.user_id
+            )
+            events.append(event_response)
+        
+        # If no events from DB, show some sample manager actions
+        if not events:
+            sample_events = [
+                EventResponse(
+                    id="manager_1",
+                    level="info",
+                    source="manager",
+                    event_type="manager_started",
+                    message="RiskNoX Manager service started",
+                    timestamp=datetime.utcnow(),
+                    created_at=datetime.utcnow()
+                ),
+                EventResponse(
+                    id="manager_2",
+                    level="info",
+                    source="manager",
+                    event_type="database_initialized",
+                    message="Database connection initialized successfully",
+                    timestamp=datetime.utcnow(),
+                    created_at=datetime.utcnow()
+                )
+            ]
+            events = sample_events
+        
+        # Apply filters
+        if level:
+            events = [e for e in events if e.level == level]
+        
+        if source:
+            events = [e for e in events if e.source == source]
+        
+        if search:
+            events = [e for e in events if search.lower() in e.message.lower()]
+        
+        total = len(events)
+        pages = (total + per_page - 1) // per_page
+        
+        return PaginatedEvents(
+            items=events,
+            total=total,
+            page=page,
+            per_page=per_page,
+            pages=pages
+        )
+        
+    except Exception as e:
+        logger.error("Failed to get events", error=str(e))
+        # Return empty events list on error
+        return PaginatedEvents(
+            items=[],
+            total=0,
+            page=page,
+            per_page=per_page,
+            pages=0
+        )

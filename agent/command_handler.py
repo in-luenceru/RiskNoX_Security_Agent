@@ -73,7 +73,7 @@ class CommandHandler:
             }
             
     async def _handle_scan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle antivirus scan command"""
+        """Handle antivirus scan command with real-time progress"""
         scan_type = payload.get("scan_type", "full")
         targets = payload.get("targets", [])
         options = payload.get("options", {})
@@ -91,11 +91,13 @@ class CommandHandler:
             cmd = [str(clamscan_exe)]
             
             # Scan options
+            log_file = self.logs_dir / f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
             cmd.extend([
                 "--database=" + str(self.vendor_dir / "database"),
-                "--log=" + str(self.logs_dir / f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
+                "--log=" + str(log_file),
                 "--recursive",
-                "--bell"
+                "--bell",
+                "--verbose"  # Enable verbose output for progress tracking
             ])
             
             # Add targets
@@ -110,7 +112,7 @@ class CommandHandler:
                 # Default to user directory
                 cmd.append(str(Path.home()))
                 
-            # Execute scan
+            # Execute scan with real-time progress tracking
             logger.info("Starting antivirus scan", command=cmd[:3])  # Don't log full command
             
             process = await asyncio.create_subprocess_exec(
@@ -119,26 +121,44 @@ class CommandHandler:
                 stderr=asyncio.subprocess.PIPE
             )
             
-            stdout, stderr = await process.communicate()
-            
-            # Parse scan results
-            scan_output = stdout.decode('utf-8', errors='ignore')
-            
-            # Extract statistics (basic parsing)
+            # Track progress in real-time
+            files_scanned = 0
             infected_files = []
-            if "FOUND" in scan_output:
-                lines = scan_output.split('\n')
-                for line in lines:
-                    if "FOUND" in line:
-                        infected_files.append(line.strip())
-                        
+            scan_logs = []
+            
+            # Read output line by line for progress updates
+            while True:
+                line = await process.stdout.readline()
+                if not line:
+                    break
+                
+                line_str = line.decode('utf-8', errors='ignore').strip()
+                if line_str:
+                    scan_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] {line_str}")
+                    
+                    # Count scanned files
+                    if "Scanning" in line_str:
+                        files_scanned += 1
+                    
+                    # Detect infected files
+                    if "FOUND" in line_str:
+                        infected_files.append(line_str)
+                    
+                    # Send progress update (would be sent via WebSocket in real implementation)
+                    if files_scanned % 100 == 0:  # Update every 100 files
+                        logger.info("Scan progress", files_scanned=files_scanned, threats=len(infected_files))
+            
+            await process.wait()
+            
             return {
                 "success": True,
                 "scan_type": scan_type,
                 "targets": targets if targets else ["system"],
+                "files_scanned": files_scanned,
                 "infected_files": infected_files,
-                "total_infected": len(infected_files),
+                "threats_found": len(infected_files),
                 "scan_completed_at": datetime.utcnow().isoformat(),
+                "execution_logs": scan_logs[-50:],  # Last 50 log lines
                 "exit_code": process.returncode
             }
             

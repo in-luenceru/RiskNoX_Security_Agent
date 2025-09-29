@@ -41,8 +41,14 @@ export const agentApi = {
     tags?: string[];
     search?: string;
   }): Promise<PaginatedResponse<Agent>> => {
-    const response = await apiClient.get('/api/v1/ui/agents', { params });
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/ui/agents', { params });
+      console.log('Agent API response structure:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch agents:', error);
+      throw error;
+    }
   },
 
   // Get single agent details
@@ -190,6 +196,62 @@ export const commandApi = {
   // Get system info
   runSystemInfoCommand: async (agentIds: string[]): Promise<any> => {
     const response = await apiClient.post('/api/v1/commands/system-info', agentIds);
+    return response.data;
+  },
+};
+
+// Scan Results API
+export const scanApi = {
+  // Get scan results
+  getScanResults: async (params?: {
+    page?: number;
+    per_page?: number;
+    agent_id?: string;
+    status?: string;
+  }): Promise<PaginatedResponse<any>> => {
+    const response = await apiClient.get('/api/v1/scans', { params });
+    return response.data;
+  },
+
+  // Get scan logs
+  getScanLogs: async (scanId: string): Promise<any> => {
+    try {
+      const response = await apiClient.get(`/api/v1/scans/${scanId}/logs`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch scan logs:', error);
+      return { logs: [] };
+    }
+  },
+};
+
+// Web Blocking API
+export const webBlockingApi = {
+  // Get blocked URLs
+  getBlockedUrls: async (params?: {
+    page?: number;
+    per_page?: number;
+    category?: string;
+  }): Promise<PaginatedResponse<any>> => {
+    const response = await apiClient.get('/api/v1/web-blocking/urls', { params });
+    return response.data;
+  },
+
+  // Add blocked URL
+  addBlockedUrl: async (data: {
+    url: string;
+    category: string;
+    agent_ids: string[];
+  }): Promise<any> => {
+    const response = await apiClient.post('/api/v1/web-blocking/urls', data);
+    return response.data;
+  },
+
+  // Remove blocked URL
+  removeBlockedUrl: async (urlId: string, agentIds: string[]): Promise<any> => {
+    const response = await apiClient.delete(`/api/v1/web-blocking/urls/${urlId}`, {
+      data: { agent_ids: agentIds }
+    });
     return response.data;
   },
 };
@@ -383,8 +445,21 @@ export const systemApi = {
     recent_threats: number;
     system_health: string;
   }> => {
-    const response = await apiClient.get('/api/v1/ui/system/stats');
-    return response.data;
+    try {
+      const response = await apiClient.get('/api/v1/ui/system/stats');
+      console.log('System stats API response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch system stats:', error);
+      // Return fallback data
+      return {
+        total_agents: 0,
+        active_agents: 0,
+        pending_commands: 0,
+        recent_threats: 0,
+        system_health: 'unknown'
+      };
+    }
   },
 };
 

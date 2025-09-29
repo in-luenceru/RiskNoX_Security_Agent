@@ -425,3 +425,29 @@ async def get_agents_by_tags(db: AsyncSession, tags: List[str]) -> List[Agent]:
         select(Agent).where(Agent.tags.overlap(tags))
     )
     return result.scalars().all()
+
+
+async def get_commands_by_type(
+    db: AsyncSession,
+    command_type: str,
+    agent_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
+) -> List[Command]:
+    """Get commands by type with optional filtering"""
+    query = select(Command).options(selectinload(Command.agent))
+    query = query.where(Command.command_type == command_type)
+    
+    if agent_id:
+        agent = await get_agent_by_id(db, agent_id)
+        if agent:
+            query = query.where(Command.agent_id == agent.id)
+    
+    if status:
+        query = query.where(Command.status == status)
+    
+    query = query.offset(offset).limit(limit).order_by(Command.created_at.desc())
+    
+    result = await db.execute(query)
+    return result.scalars().all()
