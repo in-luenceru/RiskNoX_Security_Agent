@@ -121,9 +121,220 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:14268
 LOG_LEVEL=INFO
 ```
 
-## Development
+## Manager Bridge System
 
-### Running Tests
+The Manager Bridge enables remote triggering of agent operations exactly as the local UI does.
+
+### Bridge Components
+
+```
+┌─────────────────┐    Admin Actions    ┌─────────────────┐
+│   Admin UI      │──────────────────►│  Manager API    │
+└─────────────────┘                    └─────────────────┘
+                                                │
+                        Bridge System           │
+                     ┌─────────────────────────┼─────────────────────────┐
+                     │                         │                         │
+                ┌────▼─────┐           ┌─────▼──────┐           ┌─────▼──────┐
+                │Translator│           │  Sender    │           │Connection  │
+                │          │           │            │           │Manager     │
+                └────┬─────┘           └─────┬──────┘           └─────┬──────┘
+                     │                       │                        │
+                     │    Signed Commands    │        WebSocket       │
+                     └───────────┬───────────┘                        │
+                                 │                                    │
+                                 ▼                                    ▼
+                      ┌─────────────────┐         mTLS         ┌─────────────────┐
+                      │Command Database │◄─────────────────────►│     Agent       │
+                      └─────────────────┘                      └─────────────────┘
+```
+
+### Triggering Agent Actions
+
+#### Individual Agent Actions
+```bash
+# Quick antivirus scan
+curl -X POST "http://localhost:8000/api/admin-actions/trigger" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "agent-uuid-here",
+    "action": "run_scan", 
+    "payload": {
+      "scan_type": "quick_system",
+      "options": {"heuristics": true}
+    }
+  }'
+
+# Block malicious URLs
+curl -X POST "http://localhost:8000/api/admin-actions/trigger" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "agent-uuid-here",
+    "action": "block_url",
+    "payload": {
+      "urls": ["malicious-site.com", "phishing-site.org"],
+      "category": "security_block"
+    }
+  }'
+
+# Install Windows patches
+curl -X POST "http://localhost:8000/api/admin-actions/trigger" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "agent-uuid-here", 
+    "action": "install_patches",
+    "payload": {
+      "patch_ids": ["KB5028166", "KB5028167"],
+      "auto_reboot": false
+    }
+  }'
+```
+
+#### Bulk Agent Actions
+```bash
+# Scan multiple agents
+curl -X POST "http://localhost:8000/api/admin-actions/bulk-trigger" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_ids": ["agent-1", "agent-2", "agent-3"],
+    "action": "run_scan",
+    "payload": {"scan_type": "full_system"}
+  }'
+```
+
+### Debugging Commands
+
+#### Check Agent Connection Status
+```bash
+# List all agents and connection status  
+curl "http://localhost:8000/api/agents" | jq '.[] | {id: .id, name: .name, connected: .connected, last_seen: .last_seen}'
+
+# Check specific agent
+curl "http://localhost:8000/api/agents/{agent-id}" | jq '{connected: .connected, last_command: .last_command_at}'
+```
+
+#### Monitor Command Status
+```bash
+# Get command status and results
+curl "http://localhost:8000/api/commands/{command-id}" | jq '{status: .status, results: .results, error: .error}'
+
+# List pending commands for agent
+curl "http://localhost:8000/api/agents/{agent-id}/commands?status=pending" | jq '.[] | {id: .id, type: .command_type, issued_at: .issued_at}'
+
+# List failed commands (last 24 hours)
+curl "http://localhost:8000/api/commands?status=failed&since=24h" | jq '.[] | {id: .id, agent_id: .agent_id, error: .error}'
+```
+
+#### Bridge System Diagnostics
+```bash
+# Test bridge translator
+python -c "
+from src.bridge.translator import CommandTranslator
+translator = CommandTranslator()
+result = translator.translate_action('run_scan', {'scan_type': 'quick_system'})
+print(f'Translated command: {result}')
+"
+
+# Test command signing
+python -c "
+from src.bridge.sender import CommandSender
+sender = CommandSender()
+command = {'command_type': 'scan', 'payload': {'scan_type': 'quick'}}
+signature = sender._sign_command(command)
+print(f'Command signature: {signature[:50]}...')
+"
+
+# Verify agent certificate
+openssl x509 -in /etc/ssl/agent.crt -text -noout | grep -E "(Subject|Issuer|Not After)"
+```
+
+#### Troubleshooting Offline Agents
+
+##### Check Agent Connection Issues
+```bash
+# View agent WebSocket connection logs
+docker logs manager 2>&1 | grep -E "(WebSocket|agent)" | tail -20
+
+# Check certificate validity
+curl -k "https://agent-hostname:8443/health" --cert /etc/ssl/agent.crt --key /etc/ssl/agent.key
+
+# Test network connectivity
+telnet agent-hostname 8443
+```
+
+##### Retry Failed Commands
+```bash
+# Retry all failed commands for specific agent
+curl -X POST "http://localhost:8000/api/agents/{agent-id}/retry-failed"
+
+# Retry specific command
+curl -X POST "http://localhost:8000/api/commands/{command-id}/retry"
+
+# Clear old queued commands (older than 7 days)
+curl -X DELETE "http://localhost:8000/api/commands?status=queued&older_than=7d"
+```
+
+##### Force Command Queue Flush
+```bash
+# When agent reconnects, manually trigger queue processing
+curl -X POST "http://localhost:8000/api/agents/{agent-id}/process-queue"
+
+# Check queue depth
+curl "http://localhost:8000/api/agents/{agent-id}/queue-status" | jq '{pending: .pending_commands, last_processed: .last_processed_at}'
+```
+
+#### Database Diagnostics
+```bash
+# Connect to database
+psql $DATABASE_URL
+
+# Check command statistics
+SELECT 
+  command_type,
+  status, 
+  COUNT(*) as count,
+  AVG(EXTRACT(EPOCH FROM (completed_at - issued_at))) as avg_duration_seconds
+FROM commands 
+WHERE issued_at > NOW() - INTERVAL '24 hours'
+GROUP BY command_type, status;
+
+# Find agents with communication issues
+SELECT 
+  a.id,
+  a.name,
+  a.last_seen,
+  COUNT(c.id) as failed_commands
+FROM agents a
+LEFT JOIN commands c ON a.id = c.agent_id AND c.status = 'failed'
+WHERE a.last_seen < NOW() - INTERVAL '1 hour'
+GROUP BY a.id, a.name, a.last_seen
+ORDER BY failed_commands DESC;
+```
+
+#### Emergency Procedures
+
+##### Agent Recovery
+```bash
+# Reset agent connection state
+curl -X POST "http://localhost:8000/api/agents/{agent-id}/reset-connection"
+
+# Revoke and reissue agent certificate  
+curl -X POST "http://localhost:8000/api/agents/{agent-id}/revoke-cert"
+curl -X POST "http://localhost:8000/api/agents/{agent-id}/reissue-cert"
+```
+
+##### Command Queue Recovery
+```bash
+# Cancel all pending commands for problematic agent
+curl -X DELETE "http://localhost:8000/api/agents/{agent-id}/commands?status=pending"
+
+# Emergency stop all commands
+curl -X POST "http://localhost:8000/api/admin/emergency-stop"
+```
+
+### Development
+
+#### Running Tests
 ```bash
 # Unit tests
 pytest tests/unit/
@@ -131,11 +342,15 @@ pytest tests/unit/
 # Integration tests (requires Docker)
 pytest tests/integration/
 
+# Bridge-specific tests
+pytest tests/test_manager_bridge_unit.py -v
+pytest tests/test_manager_bridge_integration.py -v
+
 # Load tests
 locust -f tests/load/test_agent_connections.py
 ```
 
-### Code Quality
+#### Code Quality
 ```bash
 # Format code
 black src/ tests/
