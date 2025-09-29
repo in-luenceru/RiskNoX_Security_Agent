@@ -12,7 +12,7 @@ import structlog
 
 from .celery_app import celery_app
 from ..db.database import get_async_db_session
-from ..db.crud import get_command_by_id, update_command_status, list_pending_commands
+from ..db.crud import get_command_by_id, update_command_status, get_pending_commands_for_agent
 from ..ws.connection_manager import connection_manager
 from ..security.signer import sign_command_payload
 

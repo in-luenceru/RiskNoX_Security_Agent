@@ -34,7 +34,11 @@ target_metadata = Base.metadata
 def get_database_url():
     """Get database URL from environment or settings"""
     settings = get_settings()
-    return settings.DATABASE_URL
+    # Convert async URL to sync URL for migrations
+    url = settings.DATABASE_URL
+    if url.startswith("postgresql+asyncpg://"):
+        url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    return url
 
 
 def run_migrations_offline() -> None:

@@ -7,7 +7,9 @@ import {
   Package, 
   Activity, 
   Menu,
-  X
+  X,
+  Globe,
+  ShieldCheck
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -21,6 +23,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Monitor },
     { name: 'Agents', href: '/agents', icon: Shield },
+    { name: 'Antivirus Scanner', href: '/antivirus', icon: ShieldCheck },
+    { name: 'Web Blocking', href: '/web-blocking', icon: Globe },
     { name: 'Schedules', href: '/schedules', icon: Calendar },
     { name: 'Patch Rollouts', href: '/patches', icon: Package },
     { name: 'Events', href: '/events', icon: Activity },

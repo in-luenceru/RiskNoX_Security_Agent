@@ -26,6 +26,10 @@ except ImportError:
 from .db.database import engine, init_db
 from .settings import get_settings
 from .ws import ws_router
+try:
+    from .socketio_server import sio, socketio_app
+except ImportError:
+    sio = socketio_app = None
 
 # Configure structured logging
 structlog.configure(
@@ -216,6 +220,13 @@ app.include_router(ui.router, prefix="/api/v1")
 
 # Include WebSocket router
 app.include_router(ws_router)
+
+# Mount Socket.IO server for UI communication
+if sio and socketio_app:
+    app.mount("/socket.io/", socketio_app)
+    logger.info("Socket.IO server mounted at /socket.io/")
+else:
+    logger.warning("Socket.IO not available, UI real-time features will be limited")
 
 if schedules:
     app.include_router(schedules.router, prefix="/api/v1")

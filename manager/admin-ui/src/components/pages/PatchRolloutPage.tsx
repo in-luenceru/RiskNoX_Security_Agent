@@ -10,10 +10,13 @@ import {
   Clock,
   Users,
   TrendingUp,
-  Plus
+  Plus,
+  Download,
+  Shield,
+  Server
 } from 'lucide-react';
-import { patchApi } from '../../services/api';
-import { PatchRollout } from '../../types';
+import { patchApi, agentApi, commandApi } from '../../services/api';
+import { PatchRollout, Patch } from '../../types';
 import webSocketService from '../../services/websocket';
 
 const PatchRolloutPage: React.FC = () => {
@@ -130,6 +133,9 @@ const PatchRolloutPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Available Patches Section */}
+      <AvailablePatchesSection />
 
       {/* Rollouts List */}
       <div className="space-y-6">
@@ -511,6 +517,180 @@ const RolloutModal: React.FC<RolloutModalProps> = ({ onClose, onSave }) => {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Available Patches Section Component
+const AvailablePatchesSection: React.FC = () => {
+  const [selectedAgents, setSelectedAgents] = React.useState<string[]>([]);
+  const [selectedPatches, setSelectedPatches] = React.useState<string[]>([]);
+  const queryClient = useQueryClient();
+
+  // Get available patches
+  const { data: patchesData } = useQuery({
+    queryKey: ['patches', { per_page: 50 }],
+    queryFn: () => patchApi.getPatches({ per_page: 50 }),
+  });
+
+  // Get agents
+  const { data: agentsData } = useQuery({
+    queryKey: ['agents', { per_page: 1000 }],
+    queryFn: () => agentApi.getAgents({ per_page: 1000 }),
+  });
+
+  // Install patches mutation
+  const installPatchesMutation = useMutation({
+    mutationFn: async ({ agentIds, patchIds }: { agentIds: string[]; patchIds: string[] }) => {
+      return commandApi.runPatchCommand(agentIds, 'install', patchIds);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patch-rollouts'] });
+      setSelectedAgents([]);
+      setSelectedPatches([]);
+    },
+  });
+
+  const patches = patchesData?.items || [];
+  const agents = agentsData?.items || [];
+
+  const handleInstallPatches = () => {
+    if (selectedAgents.length === 0 || selectedPatches.length === 0) return;
+    installPatchesMutation.mutate({ agentIds: selectedAgents, patchIds: selectedPatches });
+  };
+
+  const getSeverityBadge = (severity: string) => {
+    const styles = {
+      critical: 'bg-red-100 text-red-800',
+      high: 'bg-orange-100 text-orange-800',
+      medium: 'bg-yellow-100 text-yellow-800',
+      low: 'bg-green-100 text-green-800',
+    };
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[severity as keyof typeof styles] || styles.medium}`}>
+        {severity}
+      </span>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow mb-6">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-900">
+          <Download className="inline-block w-5 h-5 mr-2" />
+          Available System Patches
+        </h2>
+      </div>
+      
+      <div className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Patches List */}
+          <div className="lg:col-span-2">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Select Patches to Install</h3>
+            <div className="max-h-64 overflow-y-auto space-y-2">
+              {patches.map((patch) => (
+                <label key={patch.id} className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="mr-3"
+                    checked={selectedPatches.includes(patch.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedPatches([...selectedPatches, patch.id]);
+                      } else {
+                        setSelectedPatches(selectedPatches.filter(id => id !== patch.id));
+                      }
+                    }}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-900">{patch.name}</h4>
+                      {getSeverityBadge(patch.severity)}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{patch.description}</p>
+                    <div className="flex items-center text-xs text-gray-400 mt-1">
+                      <span>v{patch.version}</span>
+                      <span className="mx-2">•</span>
+                      <span>{patch.category}</span>
+                      <span className="mx-2">•</span>
+                      <span>{new Date(patch.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
+              
+              {patches.length === 0 && (
+                <div className="text-center py-8">
+                  <Package className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No patches available</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    All systems are up to date.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Agent Selection */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Target Agents</h3>
+            <div className="border border-gray-300 rounded-md p-3 max-h-64 overflow-y-auto">
+              <div className="mb-2">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    className="mr-2"
+                    checked={selectedAgents.length === agents.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedAgents(agents.map(a => a.id));
+                      } else {
+                        setSelectedAgents([]);
+                      }
+                    }}
+                  />
+                  <span className="text-sm font-medium">All Agents</span>
+                </label>
+              </div>
+              {agents.map((agent) => (
+                <label key={agent.id} className="flex items-center mb-1">
+                  <input
+                    type="checkbox"
+                    className="mr-2"
+                    checked={selectedAgents.includes(agent.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedAgents([...selectedAgents, agent.id]);
+                      } else {
+                        setSelectedAgents(selectedAgents.filter(id => id !== agent.id));
+                      }
+                    }}
+                  />
+                  <div className="flex items-center">
+                    <Server className="w-3 h-3 mr-1 text-gray-400" />
+                    <span className="text-sm">{agent.hostname}</span>
+                    <span className={`ml-2 w-2 h-2 rounded-full ${
+                      agent.status === 'online' ? 'bg-green-400' : 'bg-gray-400'
+                    }`} />
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="mt-4">
+              <button
+                onClick={handleInstallPatches}
+                disabled={selectedAgents.length === 0 || selectedPatches.length === 0 || installPatchesMutation.isPending}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+              >
+                <Download className="inline-block w-4 h-4 mr-2" />
+                {installPatchesMutation.isPending ? 'Installing...' : `Install ${selectedPatches.length} Patches`}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -56,3 +56,17 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
+
+
+async def get_async_db_session() -> AsyncSession:
+    """Get async database session for Celery tasks"""
+    if async_session_factory is None:
+        await init_db()
+    return async_session_factory()
+
+
+async def get_async_db_session() -> AsyncSession:
+    """Get async database session for Celery tasks"""
+    if async_session_factory is None:
+        await init_db()
+    return async_session_factory()

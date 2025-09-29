@@ -5,7 +5,7 @@ class WebSocketService {
   private socket: Socket | null = null;
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
 
-  connect(url: string = 'ws://localhost:8001') {
+  connect(url: string = 'http://localhost:8001') {
     if (this.socket?.connected) {
       return;
     }
@@ -41,6 +41,14 @@ class WebSocketService {
 
     this.socket.on('patch_rollout_update', (data) => {
       this.notifyListeners('patch_rollout_update', data);
+    });
+
+    this.socket.on('agents_update', (data) => {
+      this.notifyListeners('agents_update', data);
+    });
+
+    this.socket.on('system_event', (data) => {
+      this.notifyListeners('system_event', data);
     });
   }
 

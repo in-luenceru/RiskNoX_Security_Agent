@@ -32,7 +32,7 @@ class Agent(Base):
     tags: Mapped[List[str]] = mapped_column(JSONB, default=list)
     
     # Certificate information
-    certificate_serial: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    certificate_serial: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     certificate_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     certificate_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     

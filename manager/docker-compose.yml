@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -52,7 +50,7 @@ services:
     ports:
       - "8001:8001"
     environment:
-      DATABASE_URL: postgresql://manager:dev_password_change_in_prod@postgres:5432/manager
+      DATABASE_URL: postgresql+asyncpg://manager:dev_password_change_in_prod@postgres:5432/manager
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       S3_ENDPOINT: http://minio:9000
@@ -71,12 +69,12 @@ services:
         condition: service_healthy
     volumes:
       - ./src:/app/src:ro  # Development: mount source for hot reload
-    command: ["uvicorn", "src.manager_app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "src.manager_app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
 
   celery:
     build: .
     environment:
-      DATABASE_URL: postgresql://manager:dev_password_change_in_prod@postgres:5432/manager
+      DATABASE_URL: postgresql+asyncpg://manager:dev_password_change_in_prod@postgres:5432/manager
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       S3_ENDPOINT: http://minio:9000
@@ -96,7 +94,7 @@ services:
   celery-beat:
     build: .
     environment:
-      DATABASE_URL: postgresql://manager:dev_password_change_in_prod@postgres:5432/manager
+      DATABASE_URL: postgresql+asyncpg://manager:dev_password_change_in_prod@postgres:5432/manager
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       LOG_LEVEL: DEBUG
@@ -114,7 +112,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus_config.yml:/etc/prometheus/prometheus.yml:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -141,7 +139,7 @@ services:
     depends_on:
       - manager
     environment:
-      - REACT_APP_API_URL=http://localhost:8080
+      - REACT_APP_API_URL=http://localhost:8001
 
 volumes:
   postgres_data:

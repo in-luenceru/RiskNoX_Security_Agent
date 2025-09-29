@@ -249,16 +249,16 @@ async def main():
     except:
         ip_address = None
     
-    print(f"🔐 Starting enrollment for agent: {hostname}")
-    print(f"📡 Manager URL: {args.manager_url}")
-    print(f"💻 OS: {os_type} {os_version}")
+    print(f"[*] Starting enrollment for agent: {hostname}")
+    print(f"[*] Manager URL: {args.manager_url}")
+    print(f"[*] OS: {os_type} {os_version}")
     
     # Initialize enrollment
     enrollment = AgentEnrollment(args.manager_url)
     
     try:
         # Perform enrollment
-        result = await enrollment.enroll_agent(
+        result = await enrollment.enroll(
             hostname=hostname,
             os_type=os_type,
             os_version=os_version,
@@ -267,8 +267,8 @@ async def main():
         )
         
         if result["success"]:
-            print("✅ Enrollment successful!")
-            print(f"🆔 Agent ID: {result['agent_id']}")
+            print("[SUCCESS] Enrollment successful!")
+            print(f"[*] Agent ID: {result['agent_id']}")
             
             # Save configuration and certificates
             config_dir = Path(args.config_dir)
@@ -295,21 +295,21 @@ async def main():
                 f.write(result["private_key"])
                 
             print(f"📁 Configuration saved to {config_dir}")
-            print(f"🔑 Certificate expires: {result.get('expires_at', 'Unknown')}")
+            print(f"[*] Certificate expires: {result.get('expires_at', 'Unknown')}")
             
             # Verify certificate
             if enrollment.validate_certificate(result["certificate"]):
-                print("✅ Certificate validation successful")
+                print("[SUCCESS] Certificate validation successful")
             else:
                 print("⚠️ Certificate validation failed")
                 
         else:
-            print("❌ Enrollment failed!")
+            print("[ERROR] Enrollment failed!")
             print(f"Error: {result.get('error', 'Unknown error')}")
             sys.exit(1)
             
     except Exception as e:
-        print(f"❌ Enrollment error: {e}")
+        print(f"[ERROR] Enrollment error: {e}")
         logger.error("Enrollment process failed", error=str(e))
         sys.exit(1)
 

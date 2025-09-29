@@ -408,3 +408,20 @@ async def create_event(db: AsyncSession, event_data: dict) -> Event:
     await db.commit()
     await db.refresh(event)
     return event
+
+
+# Schedule CRUD operations
+async def list_active_schedules(db: AsyncSession) -> List[Schedule]:
+    """Get all active schedules"""
+    result = await db.execute(
+        select(Schedule).where(Schedule.is_active == True)
+    )
+    return result.scalars().all()
+
+
+async def get_agents_by_tags(db: AsyncSession, tags: List[str]) -> List[Agent]:
+    """Get agents that match any of the provided tags"""
+    result = await db.execute(
+        select(Agent).where(Agent.tags.overlap(tags))
+    )
+    return result.scalars().all()

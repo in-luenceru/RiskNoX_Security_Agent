@@ -8,7 +8,9 @@ import {
   AgentDetail,
   SchedulesPage,
   PatchRolloutPage,
-  EventsPage
+  EventsPage,
+  WebBlockingPage,
+  AntivirusScannerPage
 } from './components/pages';
 import webSocketService from './services/websocket';
 
@@ -40,8 +42,10 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/agents" element={<AgentsList />} />
             <Route path="/agents/:agentId" element={<AgentDetail />} />
+            <Route path="/antivirus" element={<AntivirusScannerPage />} />
+            <Route path="/web-blocking" element={<WebBlockingPage />} />
             <Route path="/schedules" element={<SchedulesPage />} />
-            <Route path="/patch-rollouts" element={<PatchRolloutPage />} />
+            <Route path="/patches" element={<PatchRolloutPage />} />
             <Route path="/events" element={<EventsPage />} />
           </Routes>
         </Layout>

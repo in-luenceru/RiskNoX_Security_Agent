@@ -278,16 +278,32 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ schedule, onSave, onClose
     name: schedule?.name || '',
     description: schedule?.description || '',
     cron_expression: schedule?.cron_expression || '0 2 * * *',
-    command_type: schedule?.command_type || 'quick_scan',
+    command_type: schedule?.command_template?.command_type || 'scan',
+    scan_type: schedule?.command_template?.scan_type || 'quick',
     enabled: schedule?.is_active ?? true,
     target_tags: schedule?.target_tags?.join(', ') || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const { enabled, ...restData } = formData;
+    const { enabled, command_type, scan_type, ...restData } = formData;
+    
+    let command_template = {};
+    if (command_type === 'scan') {
+      command_template = {
+        command_type: 'scan',
+        scan_type: scan_type,
+      };
+    } else if (command_type === 'patch') {
+      command_template = {
+        command_type: 'patch',
+        action: 'check',
+      };
+    }
+
     onSave({
       ...restData,
+      command_template,
       is_active: enabled,
       target_tags: formData.target_tags.split(',').map(tag => tag.trim()).filter(Boolean),
     });
@@ -353,11 +369,24 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ schedule, onSave, onClose
                 value={formData.command_type}
                 onChange={(e) => setFormData({ ...formData, command_type: e.target.value })}
               >
-                <option value="quick_scan">Quick Scan</option>
-                <option value="full_scan">Full Scan</option>
-                <option value="update_patches">Update Patches</option>
+                <option value="scan">Antivirus Scan</option>
+                <option value="patch">Patch Management</option>
               </select>
             </div>
+
+            {formData.command_type === 'scan' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Scan Type</label>
+                <select
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  value={formData.scan_type}
+                  onChange={(e) => setFormData({ ...formData, scan_type: e.target.value })}
+                >
+                  <option value="quick">Quick Scan</option>
+                  <option value="full">Full System Scan</option>
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Target Tags (comma-separated)</label>

@@ -1,13 +1,31 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Shield, Activity, AlertTriangle } from 'lucide-react';
-import { agentApi, systemApi } from '../../services/api';
+import { agentApi, systemApi, eventApi } from '../../services/api';
+import webSocketService from '../../services/websocket';
 
 const Dashboard: React.FC = () => {
-  const { data: agents } = useQuery({
+  const queryClient = useQueryClient();
+  
+  const { data: agents, isLoading: agentsLoading, error: agentsError } = useQuery({
     queryKey: ['agents', { per_page: 1000 }],
     queryFn: () => agentApi.getAgents({ per_page: 1000 }),
   });
+
+  // Subscribe to real-time agent updates
+  React.useEffect(() => {
+    const unsubscribe = webSocketService.subscribe('agents_update', (data) => {
+      // Update the agents query cache with real-time data
+      queryClient.setQueryData(['agents', { per_page: 1000 }], {
+        items: data.agents || [],
+        total: data.agents ? data.agents.length : 0,
+        page: 1,
+        per_page: 1000
+      });
+    });
+
+    return unsubscribe;
+  }, [queryClient]);
 
   const { data: health } = useQuery({
     queryKey: ['health'],
@@ -15,15 +33,53 @@ const Dashboard: React.FC = () => {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  const { data: recentEvents } = useQuery({
+    queryKey: ['events', { per_page: 5 }],
+    queryFn: () => eventApi.getEvents({ per_page: 5 }),
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   const agentStats = React.useMemo(() => {
-    if (!agents?.items) return { online: 0, offline: 0, error: 0, total: 0 };
+    if (!agents?.items || !Array.isArray(agents.items)) {
+      console.log('No agents data or not an array:', agents);
+      return { online: 0, offline: 0, error: 0, total: 0 };
+    }
     
     const stats = agents.items.reduce((acc, agent) => {
       acc.total++;
-      acc[agent.status]++;
+      
+      // Debug log for agent status
+      console.log(`Agent ${agent.hostname}: status=${agent.status}, last_seen=${agent.last_seen}`);
+      
+      // Categorize agent based on status
+      if (agent.status === 'online') {
+        acc.online++;
+      } else if (agent.status === 'offline') {
+        acc.offline++;
+      } else if (agent.status === 'error') {
+        acc.error++;
+      } else {
+        // For enrolled or other statuses, check last_seen to determine online/offline
+        if (agent.last_seen) {
+          const lastSeen = new Date(agent.last_seen);
+          const now = new Date();
+          const timeDiff = (now.getTime() - lastSeen.getTime()) / 1000; // seconds
+          
+          if (timeDiff < 300) { // Online if seen within 5 minutes
+            acc.online++;
+          } else {
+            acc.offline++;
+          }
+        } else {
+          // If never seen, consider offline
+          acc.offline++;
+        }
+      }
+      
       return acc;
     }, { online: 0, offline: 0, error: 0, total: 0 });
     
+    console.log('Agent stats calculated:', stats);
     return stats;
   }, [agents]);
 
@@ -121,35 +177,37 @@ const Dashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-          <div className="space-y-3">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 bg-success-500 rounded-full mt-2"></div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900">Agent enrollment completed</p>
-                <p className="text-xs text-gray-500">2 minutes ago</p>
-              </div>
+          {recentEvents?.items && recentEvents.items.length > 0 ? (
+            <div className="space-y-3">
+              {recentEvents.items.map((event) => {
+                const levelColor = {
+                  'info': 'bg-primary-500',
+                  'success': 'bg-success-500', 
+                  'warning': 'bg-warning-500',
+                  'error': 'bg-danger-500'
+                }[event.level] || 'bg-gray-500';
+
+                const timeAgo = new Date().getTime() - new Date(event.timestamp).getTime();
+                const minutesAgo = Math.floor(timeAgo / (1000 * 60));
+                const hoursAgo = Math.floor(timeAgo / (1000 * 60 * 60));
+                const timeDisplay = hoursAgo > 0 ? `${hoursAgo}h ago` : `${minutesAgo}m ago`;
+
+                return (
+                  <div key={event.id} className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className={`w-2 h-2 ${levelColor} rounded-full mt-2`}></div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">{event.message}</p>
+                      <p className="text-xs text-gray-500">{timeDisplay}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 bg-primary-500 rounded-full mt-2"></div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900">Scheduled scan completed</p>
-                <p className="text-xs text-gray-500">5 minutes ago</p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 bg-warning-500 rounded-full mt-2"></div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900">Patch rollout paused</p>
-                <p className="text-xs text-gray-500">10 minutes ago</p>
-              </div>
-            </div>
-          </div>
+          ) : (
+            <div className="text-sm text-gray-500">No recent activity</div>
+          )}
         </div>
       </div>
     </div>

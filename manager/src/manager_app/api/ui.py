@@ -3,6 +3,7 @@ UI-specific API endpoints for the admin interface
 """
 
 from typing import List, Optional
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
@@ -81,7 +82,18 @@ async def get_agents_ui(
     try:
         offset = (page - 1) * per_page
         
-        # Get agents from database
+        # Get total count first (without pagination)
+        from sqlalchemy import select, func
+        from ..db.models import Agent as DBAgent
+        
+        count_query = select(func.count(DBAgent.agent_id))
+        if status:
+            count_query = count_query.where(DBAgent.status == status)
+        
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+        
+        # Get agents from database with pagination
         agents_data = await list_agents(
             db=db,
             limit=per_page,
@@ -91,24 +103,43 @@ async def get_agents_ui(
         
         # Transform to UI format
         agents = []
-        for agent in agents_data.get("agents", []):
+        for agent in agents_data:
+            # Determine status based on last_seen_at and current status
+            agent_status = "offline"  # default
+            if agent.status == "enrolled":
+                if agent.last_seen_at:
+                    last_seen = agent.last_seen_at
+                    if isinstance(last_seen, str):
+                        last_seen = datetime.fromisoformat(last_seen.replace('Z', '+00:00'))
+                    now = datetime.now(timezone.utc)
+                    if last_seen.tzinfo is None:
+                        last_seen = last_seen.replace(tzinfo=timezone.utc)
+                    
+                    time_diff = (now - last_seen).total_seconds()
+                    agent_status = "online" if time_diff < 300 else "offline"  # 5 minutes
+                else:
+                    agent_status = "offline"
+            elif agent.status in ["active", "connected"]:
+                agent_status = "online"
+            elif agent.status in ["error", "failed"]:
+                agent_status = "error"
+            
             agent_ui = AgentUI(
                 id=agent.agent_id,
                 hostname=agent.hostname,
-                ip_address=agent.ip_address,
+                ip_address=agent.ip_address or "Unknown",
                 os_info=f"{agent.os_type} {agent.os_version}",
                 agent_version=agent.agent_version,
-                status="online" if agent.status == "active" else "offline",
+                status=agent_status,
                 last_seen=agent.last_seen_at.isoformat() if agent.last_seen_at else "",
                 tags=agent.tags or [],
                 created_at=agent.created_at.isoformat(),
-                updated_at=agent.created_at.isoformat(),  # Use created_at for now
+                updated_at=agent.created_at.isoformat(),
                 enrolled_at=agent.created_at.isoformat(),
-                certificate_status="valid" if agent.certificate_expires_at else "expired"
+                certificate_status="valid" if agent.certificate_expires_at and agent.certificate_expires_at > datetime.now(timezone.utc) else "expired"
             )
             agents.append(agent_ui)
         
-        total = agents_data.get("total", 0)
         pages = (total + per_page - 1) // per_page
         
         return PaginatedResponse(
@@ -207,11 +238,11 @@ async def get_system_stats_ui(db: AsyncSession = Depends(get_db_session)):
     """Get system statistics for UI dashboard"""
     try:
         # Get basic stats
-        agents_data = await list_agents(db=db, limit=1000, offset=0)
-        total_agents = agents_data.get("total", 0)
+        agents_data = await list_agents(db=db, limit=1000, offset=0)  # Returns list directly
+        total_agents = len(agents_data)
         
-        # Count active agents (this is a simplified version)
-        active_agents = len([a for a in agents_data.get("agents", []) if a.status == "active"])
+        # Count active agents (enrolled and active agents should be considered active)
+        active_agents = len([a for a in agents_data if a.status in ["active", "enrolled"]])
         
         return {
             "total_agents": total_agents,

@@ -19,9 +19,9 @@ celery_app = Celery(
     broker=settings.CELERY_BROKER_URL,
     backend=settings.REDIS_URL,
     include=[
-        'manager_app.tasks.command_delivery',
-        'manager_app.tasks.scheduler',
-        'manager_app.tasks.maintenance'
+        'src.manager_app.tasks.command_delivery',
+        'src.manager_app.tasks.scheduler',
+        'src.manager_app.tasks.maintenance'
     ]
 )
 
@@ -29,9 +29,9 @@ celery_app = Celery(
 celery_app.conf.update(
     # Task routing
     task_routes={
-        'manager_app.tasks.command_delivery.*': {'queue': 'commands'},
-        'manager_app.tasks.scheduler.*': {'queue': 'scheduler'},
-        'manager_app.tasks.maintenance.*': {'queue': 'maintenance'},
+        'src.manager_app.tasks.command_delivery.*': {'queue': 'commands'},
+        'src.manager_app.tasks.scheduler.*': {'queue': 'scheduler'},
+        'src.manager_app.tasks.maintenance.*': {'queue': 'maintenance'},
     },
     
     # Task serialization
@@ -56,25 +56,25 @@ celery_app.conf.update(
     beat_schedule={
         # Cleanup stale connections every 5 minutes
         'cleanup-stale-connections': {
-            'task': 'manager_app.tasks.maintenance.cleanup_stale_connections',
+            'task': 'src.manager_app.tasks.maintenance.cleanup_stale_connections',
             'schedule': crontab(minute='*/5'),
         },
         
         # Process scheduled scans every minute
         'process-scheduled-scans': {
-            'task': 'manager_app.tasks.scheduler.process_scheduled_scans',
+            'task': 'src.manager_app.tasks.scheduler.process_scheduled_scans',
             'schedule': crontab(minute='*'),
         },
         
         # Certificate expiry check daily at 2 AM
         'check-certificate-expiry': {
-            'task': 'manager_app.tasks.maintenance.check_certificate_expiry',
+            'task': 'src.manager_app.tasks.maintenance.check_certificate_expiry',
             'schedule': crontab(hour=2, minute=0),
         },
         
         # Retry failed commands every 10 minutes
         'retry-failed-commands': {
-            'task': 'manager_app.tasks.command_delivery.retry_failed_commands',
+            'task': 'src.manager_app.tasks.command_delivery.retry_failed_commands',
             'schedule': crontab(minute='*/10'),
         },
     },
