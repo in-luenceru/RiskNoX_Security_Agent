@@ -80,7 +80,23 @@ class CertificateManager:
         return None, None
         
     def get_certificate_serial(self) -> Optional[str]:
-        """Get certificate serial number"""
+        """Get certificate serial number in decimal format (as stored in database)"""
+        try:
+            if not self.cert_file.exists():
+                return None
+                
+            with open(self.cert_file, 'rb') as f:
+                cert = x509.load_pem_x509_certificate(f.read())
+                
+            # Return serial number as decimal string (same format as stored in database)
+            return str(cert.serial_number)
+            
+        except Exception as e:
+            logger.error("Failed to get certificate serial", error=str(e))
+            return None
+            
+    def get_certificate_serial_hex(self) -> Optional[str]:
+        """Get certificate serial number in hexadecimal format"""
         try:
             if not self.cert_file.exists():
                 return None
@@ -91,7 +107,7 @@ class CertificateManager:
             return format(cert.serial_number, 'x')
             
         except Exception as e:
-            logger.error("Failed to get certificate serial", error=str(e))
+            logger.error("Failed to get certificate serial hex", error=str(e))
             return None
             
     def get_certificate_info(self) -> Optional[dict]:
@@ -104,7 +120,8 @@ class CertificateManager:
                 cert = x509.load_pem_x509_certificate(f.read())
                 
             return {
-                "serial": format(cert.serial_number, 'x'),
+                "serial": format(cert.serial_number, 'x'),  # Keep hex for display
+                "serial_decimal": str(cert.serial_number),  # Add decimal format
                 "subject": cert.subject.rfc4514_string(),
                 "issuer": cert.issuer.rfc4514_string(),
                 "not_valid_before": cert.not_valid_before.isoformat(),

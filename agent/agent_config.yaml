@@ -1,5 +1,5 @@
-agent_id: null
-cert_dir: certs
+agent_id: "152050db-bac5-4c9c-9afc-b2314f4394d7"
+cert_dir: ../config
 command_timeout: 300
 heartbeat_interval: 60
 log_level: INFO

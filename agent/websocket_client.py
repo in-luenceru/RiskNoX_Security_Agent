@@ -55,10 +55,14 @@ class AgentWebSocketClient:
         self.agent_id = config.get("agent_id")
         self.hostname = config.get("hostname", socket.gethostname())
         
+        # Try to load agent_id from agent_info.json if not in config
+        if not self.agent_id:
+            self.agent_id = self._load_agent_id_from_config()
+        
         # Components
         self.enrollment = AgentEnrollment(self.manager_url.replace("wss://", "https://").replace("ws://", "http://"))
         self.command_handler = CommandHandler(websocket_client=self)
-        self.cert_manager = CertificateManager(config.get("cert_dir", "./certs"))
+        self.cert_manager = CertificateManager(config.get("cert_dir", "../config"))
         
         # Connection state
         self.websocket = None
@@ -157,6 +161,34 @@ class AgentWebSocketClient:
             logger.error("Enrollment check failed", error=str(e))
             return False
             
+    def _load_agent_id_from_config(self) -> Optional[str]:
+        """Load agent ID from agent_info.json file"""
+        try:
+            # Try multiple possible locations for agent_info.json
+            possible_paths = [
+                Path("../config/agent_info.json"),
+                Path("config/agent_info.json"),
+                Path("./agent_info.json")
+            ]
+            
+            for config_path in possible_paths:
+                if config_path.exists():
+                    with open(config_path, 'r') as f:
+                        agent_info = json.load(f)
+                        agent_id = agent_info.get("agent_id")
+                        if agent_id:
+                            logger.info("Loaded agent ID from config", 
+                                       agent_id=agent_id, 
+                                       config_file=str(config_path))
+                            return agent_id
+            
+            logger.warning("Could not find agent_info.json with valid agent_id")
+            return None
+            
+        except Exception as e:
+            logger.error("Failed to load agent ID from config", error=str(e))
+            return None
+            
     def _get_local_ip(self) -> str:
         """Get local IP address"""
         try:
@@ -207,14 +239,6 @@ class AgentWebSocketClient:
                 
             logger.info("Connecting to Manager", url=ws_url)
             
-            # Prepare connection parameters
-            connect_kwargs = {
-                "extra_headers": {
-                    "X-Client-Cert-Serial": cert_serial or "dev_serial",
-                    "X-Agent-ID": self.agent_id or "unknown"
-                }
-            }
-            
             # Only use SSL for secure WebSocket connections (wss://)
             if ws_url.startswith("wss://"):
                 # Prepare SSL context for mTLS
@@ -226,14 +250,14 @@ class AgentWebSocketClient:
                 cert_path, key_path = self.cert_manager.get_certificate_paths()
                 if cert_path and key_path:
                     ssl_context.load_cert_chain(cert_path, key_path)
-                    
-                connect_kwargs["ssl"] = ssl_context
+                
                 logger.info("Using secure WebSocket connection with SSL")
+                # Connect to WebSocket with SSL
+                self.websocket = await websockets.connect(ws_url, ssl=ssl_context)
             else:
                 logger.info("Using plain WebSocket connection (no SSL)")
-            
-            # Connect to WebSocket
-            self.websocket = await websockets.connect(ws_url, **connect_kwargs)
+                # Connect to WebSocket without SSL
+                self.websocket = await websockets.connect(ws_url)
             
             self.is_connected = True
             logger.info("Connected to Manager WebSocket")

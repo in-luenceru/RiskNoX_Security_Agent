@@ -121,7 +121,8 @@ class RiskNoXAgent:
                 "agent_id": self.config.get("agent_id"),
                 "hostname": socket.gethostname(),
                 "heartbeat_interval": self.config["heartbeat_interval"],
-                "reconnect_interval": self.config["reconnect_interval"]
+                "reconnect_interval": self.config["reconnect_interval"],
+                "cert_dir": self.config.get("cert_dir", "../config")
             }
             self.ws_client = AgentWebSocketClient(ws_config
             )
