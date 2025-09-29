@@ -193,18 +193,8 @@ class AgentWebSocketClient:
                 break
                 
     async def _connect(self):
-        """Establish WebSocket connection with mTLS"""
+        """Establish WebSocket connection with optional mTLS"""
         try:
-            # Prepare SSL context for mTLS
-            ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-            ssl_context.check_hostname = False  # For development
-            ssl_context.verify_mode = ssl.CERT_NONE  # For development
-            
-            # Load client certificate for mTLS
-            cert_path, key_path = self.cert_manager.get_certificate_paths()
-            if cert_path and key_path:
-                ssl_context.load_cert_chain(cert_path, key_path)
-                
             # WebSocket URL
             ws_url = self.manager_url.replace("https://", "wss://").replace("http://", "ws://")
             if not ws_url.endswith("/ws/agent"):
@@ -217,15 +207,33 @@ class AgentWebSocketClient:
                 
             logger.info("Connecting to Manager", url=ws_url)
             
-            # Connect to WebSocket
-            self.websocket = await websockets.connect(
-                ws_url,
-                ssl=ssl_context,
-                extra_headers={
+            # Prepare connection parameters
+            connect_kwargs = {
+                "extra_headers": {
                     "X-Client-Cert-Serial": cert_serial or "dev_serial",
                     "X-Agent-ID": self.agent_id or "unknown"
                 }
-            )
+            }
+            
+            # Only use SSL for secure WebSocket connections (wss://)
+            if ws_url.startswith("wss://"):
+                # Prepare SSL context for mTLS
+                ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                ssl_context.check_hostname = False  # For development
+                ssl_context.verify_mode = ssl.CERT_NONE  # For development
+                
+                # Load client certificate for mTLS
+                cert_path, key_path = self.cert_manager.get_certificate_paths()
+                if cert_path and key_path:
+                    ssl_context.load_cert_chain(cert_path, key_path)
+                    
+                connect_kwargs["ssl"] = ssl_context
+                logger.info("Using secure WebSocket connection with SSL")
+            else:
+                logger.info("Using plain WebSocket connection (no SSL)")
+            
+            # Connect to WebSocket
+            self.websocket = await websockets.connect(ws_url, **connect_kwargs)
             
             self.is_connected = True
             logger.info("Connected to Manager WebSocket")

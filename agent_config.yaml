@@ -4,8 +4,8 @@ command_timeout: 300
 heartbeat_interval: 60
 log_level: INFO
 manager_host: localhost
-manager_port: 8443
-manager_ws_port: 8444
+manager_port: 8001
+manager_ws_port: 8001
 reconnect_interval: 30
 scan_paths:
 - C:\
