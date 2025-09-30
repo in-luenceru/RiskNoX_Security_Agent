@@ -2139,16 +2139,220 @@ function deleteSchedule() {
     }
 }
 
-// Global function wrappers for HTML onclick handlers
-function showAdminLogin() {
-    if (securityAgent) {
-        securityAgent.showAdminLogin();
-    } else {
-        // Fallback if securityAgent not ready
-        const modal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
-        modal.show();
+    // Comprehensive Windows Update Control Functions
+    async implementComprehensiveBlocking() {
+        if (!this.authToken) {
+            this.showAlert('Admin authentication required', 'warning');
+            return;
+        }
+
+        if (!confirm('This will implement comprehensive Windows Update blocking. This action requires system restart. Continue?')) {
+            return;
+        }
+
+        const blockBtn = document.getElementById('implementBlockingBtn');
+        const originalText = blockBtn.innerHTML;
+        
+        try {
+            blockBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm"></i> Implementing...';
+            blockBtn.disabled = true;
+            
+            this.showAlert('Implementing comprehensive Windows Update blocking...', 'info');
+            
+            const response = await this.apiCall('/patch-management/comprehensive-block', {
+                method: 'POST'
+            });
+            
+            if (response.success) {
+                this.showAlert('Comprehensive Windows Update blocking implemented successfully! System restart recommended.', 'success');
+                
+                // Update control status
+                setTimeout(() => this.loadControlStatus(), 2000);
+            } else {
+                this.showAlert('Failed to implement blocking: ' + (response.error || 'Unknown error'), 'danger');
+            }
+            
+        } catch (error) {
+            this.showAlert('Failed to implement blocking: ' + error.message, 'danger');
+        } finally {
+            blockBtn.innerHTML = originalText;
+            blockBtn.disabled = false;
+        }
+    }
+
+    async loadControlStatus() {
+        try {
+            const response = await this.apiCall('/patch-management/control-status');
+            
+            if (response.success) {
+                const status = response.control_status;
+                
+                // Update overall control percentage
+                const controlPercentageEl = document.getElementById('controlPercentage');
+                if (controlPercentageEl) {
+                    controlPercentageEl.textContent = `${status.overall_percentage}%`;
+                }
+                
+                // Update progress bar
+                const progressBar = document.getElementById('controlProgressBar');
+                if (progressBar) {
+                    progressBar.style.width = `${status.overall_percentage}%`;
+                    progressBar.className = `progress-bar ${status.overall_percentage >= 90 ? 'bg-success' : 
+                                                         status.overall_percentage >= 70 ? 'bg-warning' : 'bg-danger'}`;
+                }
+                
+                // Update detailed control status
+                this.updateDetailedControlStatus(status);
+                
+                // Update control summary
+                const controlSummaryEl = document.getElementById('controlSummary');
+                if (controlSummaryEl) {
+                    const statusText = status.overall_percentage >= 90 ? 'Platform has full control' :
+                                     status.overall_percentage >= 70 ? 'Platform has partial control' :
+                                     'Platform control limited';
+                    
+                    controlSummaryEl.innerHTML = `
+                        <div class="alert ${status.overall_percentage >= 90 ? 'alert-success' : 
+                                         status.overall_percentage >= 70 ? 'alert-warning' : 'alert-danger'}">
+                            <strong>${statusText}</strong><br>
+                            <small>${status.blocked_components} of ${status.total_components} components blocked</small>
+                        </div>
+                    `;
+                }
+            } else {
+                this.showControlError('Failed to load control status', response.error);
+            }
+            
+        } catch (error) {
+            this.showControlError('Failed to load control status', error.message);
+        }
+    }
+
+    updateDetailedControlStatus(status) {
+        const detailsDiv = document.getElementById('controlDetails');
+        if (!detailsDiv || !status.component_status) return;
+        
+        const components = status.component_status;
+        
+        detailsDiv.innerHTML = `
+            <div class="row">
+                ${Object.entries(components).map(([component, isBlocked]) => `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card border-${isBlocked ? 'success' : 'danger'} h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="bi bi-${isBlocked ? 'shield-check' : 'shield-exclamation'}"></i>
+                                    ${this.formatComponentName(component)}
+                                </h6>
+                                <span class="badge ${isBlocked ? 'bg-success' : 'bg-danger'}">
+                                    ${isBlocked ? 'Blocked' : 'Active'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    formatComponentName(component) {
+        const names = {
+            'automatic_updates': 'Automatic Updates',
+            'windows_update_service': 'Windows Update Service',
+            'settings_ui': 'Settings UI Access',
+            'microsoft_store': 'Microsoft Store Updates',
+            'feature_updates': 'Feature Updates',
+            'quality_updates': 'Quality Updates',
+            'driver_updates': 'Driver Updates',
+            'maintenance_scheduler': 'Maintenance Scheduler'
+        };
+        return names[component] || component.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    async verifyControlStatus() {
+        const verifyBtn = document.getElementById('verifyControlBtn');
+        const originalText = verifyBtn.innerHTML;
+        
+        try {
+            verifyBtn.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm"></i> Verifying...';
+            verifyBtn.disabled = true;
+            
+            this.showAlert('Verifying Windows Update control status...', 'info');
+            
+            const response = await this.apiCall('/patch-management/verify-control', {
+                method: 'POST'
+            });
+            
+            if (response.success) {
+                const verification = response.verification_results;
+                this.showAlert(`Control verification completed. ${verification.verified_controls} of ${verification.total_controls} controls verified.`, 
+                              verification.all_verified ? 'success' : 'warning');
+                
+                // Reload control status
+                setTimeout(() => this.loadControlStatus(), 1000);
+            } else {
+                this.showAlert('Failed to verify control: ' + (response.error || 'Unknown error'), 'danger');
+            }
+            
+        } catch (error) {
+            this.showAlert('Failed to verify control: ' + error.message, 'danger');
+        } finally {
+            verifyBtn.innerHTML = originalText;
+            verifyBtn.disabled = false;
+        }
+    }
+
+    async installSpecificUpdate(updateId) {
+        if (!this.authToken) {
+            this.showAlert('Admin authentication required', 'warning');
+            return;
+        }
+
+        if (!updateId) {
+            this.showAlert('Please provide an update ID', 'warning');
+            return;
+        }
+
+        if (!confirm(`Install specific update ${updateId}?`)) {
+            return;
+        }
+
+        try {
+            this.showAlert('Installing specific update...', 'info');
+            
+            const response = await this.apiCall('/patch-management/install-specific', {
+                method: 'POST',
+                body: JSON.stringify({ update_id: updateId })
+            });
+            
+            if (response.success) {
+                this.showAlert('Specific update installation completed successfully!', 'success');
+                
+                // Reload patch information
+                setTimeout(() => this.loadPatchInfo(), 2000);
+            } else {
+                this.showAlert('Failed to install specific update: ' + (response.error || 'Unknown error'), 'danger');
+            }
+            
+        } catch (error) {
+            this.showAlert('Failed to install specific update: ' + error.message, 'danger');
+        }
+    }
+
+    showControlError(title, message) {
+        const controlDiv = document.getElementById('updateControlPanel');
+        if (controlDiv) {
+            controlDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="bi bi-exclamation-triangle"></i> ${title}</h6>
+                    <p class="mb-0">${message}</p>
+                </div>
+            `;
+        }
     }
 }
+
+// Global functions for HTML onclick events
 
 function logout() {
     securityAgent?.logout();
@@ -2217,6 +2421,87 @@ function createScheduledScan() {
     securityAgent?.createScheduledScan();
 }
 
+// Global function wrappers for HTML onclick handlers
+function showAdminLogin() {
+    if (securityAgent) {
+        securityAgent.showAdminLogin();
+    } else {
+        // Fallback if securityAgent not ready
+        const modal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
+        modal.show();
+    }
+}
+
+function updateScheduleOptions() {
+    const scheduleType = document.getElementById('scheduleType').value;
+    const intervalOptions = document.getElementById('intervalOptions');
+    const timeOptions = document.getElementById('timeOptions');
+    const weeklyOptions = document.getElementById('weeklyOptions');
+    const monthlyOptions = document.getElementById('monthlyOptions');
+    
+    // Hide all options first
+    intervalOptions.style.display = 'none';
+    timeOptions.style.display = 'none';
+    weeklyOptions.style.display = 'none';
+    monthlyOptions.style.display = 'none';
+    
+    // Show relevant options based on schedule type
+    if (scheduleType === 'interval') {
+        intervalOptions.style.display = 'block';
+    } else if (scheduleType === 'daily') {
+        timeOptions.style.display = 'block';
+    } else if (scheduleType === 'weekly') {
+        timeOptions.style.display = 'block';
+        weeklyOptions.style.display = 'block';
+    } else if (scheduleType === 'monthly') {
+        timeOptions.style.display = 'block';
+        monthlyOptions.style.display = 'block';
+    }
+}
+
+// Global functions for scheduled scan details modal
+function toggleSchedule() {
+    if (securityAgent && securityAgent.currentScheduleId) {
+        const enabled = !securityAgent.currentSchedule.enabled;
+        securityAgent.toggleScheduledScan(securityAgent.currentScheduleId, enabled);
+    }
+}
+
+function deleteSchedule() {
+    if (securityAgent && securityAgent.currentScheduleId) {
+        if (confirm('Are you sure you want to delete this scheduled scan?')) {
+            securityAgent.deleteScheduledScan(securityAgent.currentScheduleId);
+            // Close modal after deletion
+            const modal = bootstrap.Modal.getInstance(document.getElementById('scheduledScanDetailsModal'));
+            if (modal) {
+                modal.hide();
+            }
+        }
+    }
+}
+
+// Comprehensive Windows Update Control Global Functions
+function implementComprehensiveBlocking() {
+    securityAgent?.implementComprehensiveBlocking();
+}
+
+function loadControlStatus() {
+    securityAgent?.loadControlStatus();
+}
+
+function verifyControlStatus() {
+    securityAgent?.verifyControlStatus();
+}
+
+function installSpecificUpdate() {
+    const updateId = document.getElementById('specificUpdateId')?.value?.trim();
+    if (updateId) {
+        securityAgent?.installSpecificUpdate(updateId);
+    } else {
+        securityAgent?.showAlert('Please enter an update ID', 'warning');
+    }
+}
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     securityAgent = new SecurityAgent();
@@ -2230,4 +2515,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Add event listeners for tab switching to load content dynamically
+    const tabButtons = document.querySelectorAll('.nav-link[data-bs-toggle="tab"]');
+    tabButtons.forEach(button => {
+        button.addEventListener('shown.bs.tab', function(event) {
+            const targetTab = event.target.getAttribute('data-bs-target');
+            
+            // Load content based on which tab is shown
+            if (targetTab === '#patch-management') {
+                securityAgent.loadPatchInfo();
+            } else if (targetTab === '#update-control') {
+                securityAgent.loadControlStatus();
+            } else if (targetTab === '#web-blocking') {
+                securityAgent.loadBlockedUrls();
+            } else if (targetTab === '#scheduled-scans') {
+                securityAgent.loadScheduledScans();
+            }
+        });
+    });
 });

@@ -1,0 +1,9 @@
+{
+  "Version": "2.0.0",
+  "MaxConcurrentDownloads": 3,
+  "LogRetentionDays": 30,
+  "SetupDate": "2025-09-29T21:15:37",
+  "ProfessionalMode": true,
+  "RebootPolicy": "Prompt",
+  "AutoUpdateCheck": true
+}

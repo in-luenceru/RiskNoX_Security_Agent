@@ -454,6 +454,12 @@
                                             <i class="bi bi-shield-lock"></i> Policy Management
                                         </button>
                                     </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link admin-only" id="update-control-tab" data-bs-toggle="pill" 
+                                                data-bs-target="#update-control" type="button">
+                                            <i class="bi bi-sliders"></i> Update Control
+                                        </button>
+                                    </li>
                                 </ul>
                             </div>
                             <div class="card-body">
@@ -464,7 +470,10 @@
                                             <h6><i class="bi bi-exclamation-triangle text-warning"></i> Available Updates</h6>
                                             <div class="admin-only">
                                                 <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-outline-primary" onclick="checkForUpdates()">
+                                                    <button class="btn btn-outline-primary" onclick="forceUpdateCheck()" id="forceCheckBtn">
+                                                        <i class="bi bi-arrow-clockwise"></i> Force Check
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary" onclick="checkForUpdates()">
                                                         <i class="bi bi-arrow-clockwise"></i> Refresh
                                                     </button>
                                                     <button class="btn btn-success" onclick="installUpdates()">
@@ -560,6 +569,133 @@
                                                 <div class="card-body">
                                                     <div id="complianceDetails">
                                                         <p class="text-muted">Click "Check Compliance Status" to view current policy compliance.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- New Update Control Tab (Admin Only) -->
+                                    <div class="tab-pane fade admin-only" id="update-control" role="tabpanel">
+                                        <div class="alert alert-warning">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            <strong>Windows Update Control Center</strong><br>
+                                            Comprehensive control over Windows Update system. Use these tools to take full control of Windows updates on this system.
+                                        </div>
+
+                                        <!-- Control Status Overview -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-4">
+                                                <div class="card border-info">
+                                                    <div class="card-header bg-info text-white">
+                                                        <h6 class="mb-0"><i class="bi bi-speedometer2"></i> Control Status</h6>
+                                                    </div>
+                                                    <div class="card-body text-center">
+                                                        <div class="display-4 mb-2">
+                                                            <span id="controlPercentage" class="text-info">--</span>
+                                                        </div>
+                                                        <p class="mb-0">Platform Control</p>
+                                                        <small id="overallControlStatus" class="text-muted">Loading...</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <div class="card">
+                                                    <div class="card-header">
+                                                        <h6 class="mb-0"><i class="bi bi-list-check"></i> Component Status</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <ul class="list-unstyled">
+                                                                    <li class="mb-2">
+                                                                        <strong>Automatic Updates:</strong> <span id="autoUpdatesStatus">Loading...</span>
+                                                                    </li>
+                                                                    <li class="mb-2">
+                                                                        <strong>Windows Update Service:</strong> <span id="serviceStatus">Loading...</span>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <ul class="list-unstyled">
+                                                                    <li class="mb-2">
+                                                                        <strong>UI Access:</strong> <span id="uiAccessStatus">Loading...</span>
+                                                                    </li>
+                                                                    <li class="mb-2">
+                                                                        <strong>Settings Access:</strong> <span id="settingsAccessStatus">Loading...</span>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Control Actions -->
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="card border-danger">
+                                                    <div class="card-header bg-danger text-white">
+                                                        <h6 class="mb-0"><i class="bi bi-shield-x"></i> Comprehensive Blocking</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="text-muted">
+                                                            Implement comprehensive Windows Update blocking that prevents:
+                                                        </p>
+                                                        <ul class="small">
+                                                            <li>Automatic Windows Updates</li>
+                                                            <li>User-initiated updates via Settings</li>
+                                                            <li>Windows Update service access</li>
+                                                            <li>Microsoft Store auto-updates</li>
+                                                            <li>Driver auto-updates</li>
+                                                            <li>Feature and quality updates</li>
+                                                        </ul>
+                                                        <div class="d-grid">
+                                                            <button class="btn btn-danger" onclick="implementComprehensiveBlocking()" id="comprehensiveBlockBtn">
+                                                                <i class="bi bi-shield-x"></i> Implement Comprehensive Blocking
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card border-success">
+                                                    <div class="card-header bg-success text-white">
+                                                        <h6 class="mb-0"><i class="bi bi-gear"></i> Platform Operations</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="text-muted">
+                                                            Platform-controlled update operations:
+                                                        </p>
+                                                        <div class="d-grid gap-2">
+                                                            <button class="btn btn-primary" onclick="forceUpdateCheck()" id="forceCheckBtn2">
+                                                                <i class="bi bi-search"></i> Force Update Detection
+                                                            </button>
+                                                            <button class="btn btn-success" onclick="installUpdates()">
+                                                                <i class="bi bi-download"></i> Install Platform-Approved Updates
+                                                            </button>
+                                                            <button class="btn btn-info" onclick="loadControlStatus()">
+                                                                <i class="bi bi-arrow-clockwise"></i> Refresh Control Status
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Command Log -->
+                                        <div class="mt-4">
+                                            <div class="card">
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0"><i class="bi bi-terminal"></i> Operation Log</h6>
+                                                    <button class="btn btn-sm btn-outline-secondary" onclick="clearOperationLog()">
+                                                        <i class="bi bi-eraser"></i> Clear Log
+                                                    </button>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div id="operationLog" class="log-output" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; background-color: #f8f9fa; padding: 10px; border: 1px solid #dee2e6;">
+                                                        <div class="text-muted">Operation log will appear here...</div>
                                                     </div>
                                                 </div>
                                             </div>

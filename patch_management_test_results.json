@@ -1,0 +1,282 @@
+[
+  {
+    "Timestamp": "2025-09-30T20:55:42.3982534+05:30",
+    "Details": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\scripts\\AdvancedPatchManagement.ps1",
+    "Passed": true,
+    "Component": "PowerShell",
+    "Test": "Script File Exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:55:42.4046902+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "PowerShell",
+    "Test": "Script Syntax Valid"
+  },
+  {
+    "Timestamp": "2025-09-30T20:55:42.7310566+05:30",
+    "Details": "Automatic updates blocked successfully",
+    "Passed": true,
+    "Component": "PowerShell",
+    "Test": "Block Auto Updates"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:07.9243253+05:30",
+    "Details": "Found 0 updates",
+    "Passed": true,
+    "Component": "PowerShell",
+    "Test": "Get Available Updates"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0035982+05:30",
+    "Details": "Windows updates re-enabled successfully",
+    "Passed": true,
+    "Component": "PowerShell",
+    "Test": "Re-enable Updates"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0096296+05:30",
+    "Details": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\backend_server.py",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Server File Exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0129884+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Method block_automatic_updates exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.013678+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Method block_user_updates exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0142433+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Method enable_updates exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0147952+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Method get_available_updates exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0153146+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Method install_selected_updates exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0159528+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Endpoint /api/patch/block-auto exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0175558+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Endpoint /api/patch/block-user exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0193536+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Endpoint /api/patch/enable exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0202702+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Endpoint /api/patch/scan exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0209216+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Backend",
+    "Test": "Endpoint /api/patch/install exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0263486+05:30",
+    "Details": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\web",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Web Directory Exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0278019+05:30",
+    "Details": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\web\\index.html",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Main HTML File Exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0299827+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Tab 'available-updates' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0305693+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Tab 'pending-updates' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0316101+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Tab 'installed-patches' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0327761+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Tab 'update-history' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.035231+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Tab 'policy-management' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0370325+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Tab 'update-control' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0383518+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "JavaScript 'patch-management-functions.js' referenced"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0426528+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "JavaScript 'patch-management-extensions.js' referenced"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0443892+05:30",
+    "Details": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\web\\patch-management-functions.js",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Patch Functions JS Exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0462224+05:30",
+    "Details": "C:\\Users\\ANANDHU\\Downloads\\RiskNoX_Security_Agent_Service\\RiskNoX_Security_Agent_Service_20250916_115309\\web\\patch-management-extensions.js",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Patch Extensions JS Exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0478369+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Function 'toggleUpdateSelection' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0486826+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Function 'blockAutomaticUpdates' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0492588+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Function 'installSelectedUpdates' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0503845+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Function 'refreshPatchData' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.053889+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Extension method 'displayAvailableUpdates' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0548112+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Extension method 'displayInstalledPatches' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0556947+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Extension method 'updateControlStatus' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0565779+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "UI",
+    "Test": "Extension method 'getSeverityClass' exists"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0620503+05:30",
+    "Details": "Running",
+    "Passed": true,
+    "Component": "Integration",
+    "Test": "Windows Update Service Found"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0691163+05:30",
+    "Details": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+    "Passed": true,
+    "Component": "Integration",
+    "Test": "Registry Access Available"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0715789+05:30",
+    "Details": "Current policy: Bypass",
+    "Passed": true,
+    "Component": "Integration",
+    "Test": "PowerShell Execution Allowed"
+  },
+  {
+    "Timestamp": "2025-09-30T20:56:08.0731801+05:30",
+    "Details": "",
+    "Passed": true,
+    "Component": "Integration",
+    "Test": "Administrative Privileges"
+  }
+]
