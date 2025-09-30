@@ -5,7 +5,7 @@ class WebSocketService {
   private socket: Socket | null = null;
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
 
-  connect(url: string = 'http://localhost:8000') {
+  connect(url: string = 'http://localhost:8001') {
     if (this.socket?.connected) {
       return;
     }
